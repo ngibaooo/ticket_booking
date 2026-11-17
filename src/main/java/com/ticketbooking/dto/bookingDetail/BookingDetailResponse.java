@@ -1,5 +1,5 @@
 
-package com.ticketbooking.dto.bookingdetail;
+package com.ticketbooking.dto.bookingDetail;
 
 import java.math.BigDecimal;
 
