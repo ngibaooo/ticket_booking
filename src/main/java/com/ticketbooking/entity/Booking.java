@@ -48,7 +48,7 @@ public class Booking {
 
     @OneToMany(mappedBy = "booking", fetch = FetchType.LAZY)
     private List<BookingDetail> bookingDetails = new ArrayList<>();
-
+//    Dùng protected hạn chế việc các class khác package có thể tạo đối tượng Booking rỗng
     protected Booking() {
     }
 

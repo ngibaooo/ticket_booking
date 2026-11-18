@@ -42,6 +42,23 @@ public class User {
 
     protected User() {
     }
+    public static User createCustomer(
+            String fullName,
+            String email,
+            String encodedPassword,
+            String phone
+    ) {
+        User user = new User();
+
+        user.fullName = fullName;
+        user.email = email;
+        user.password = encodedPassword;
+        user.phone = phone;
+        user.role = UserRole.CUSTOMER;
+        user.status = UserStatus.ACTIVE;
+
+        return user;
+    }
 
     @PrePersist
     protected void onCreate() {
