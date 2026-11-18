@@ -1,4 +1,13 @@
 package com.ticketbooking.service.auth;
 
-public class AuthService {
+import com.ticketbooking.dto.auth.LoginRequest;
+import com.ticketbooking.dto.auth.LoginResponse;
+import com.ticketbooking.dto.auth.RegisterRequest;
+import com.ticketbooking.dto.user.UserResponse;
+
+public interface AuthService {
+
+    UserResponse register(RegisterRequest request);
+
+    LoginResponse login(LoginRequest request);
 }
