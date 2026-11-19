@@ -2,9 +2,11 @@
 package com.ticketbooking.service.user;
 
 import com.ticketbooking.dto.user.UpdateUserRequest;
+import com.ticketbooking.dto.user.UpdateUserStatusRequest;
 import com.ticketbooking.dto.user.UserResponse;
 import com.ticketbooking.entity.User;
 import com.ticketbooking.exception.BadRequestException;
+import com.ticketbooking.exception.ForbiddenException;
 import com.ticketbooking.exception.ResourceNotFoundException;
 import com.ticketbooking.mapper.UserMapper;
 import com.ticketbooking.repository.UserRepository;
@@ -65,5 +67,47 @@ public class UserServiceImpl implements UserService {
                 .map(userMapper::toResponse);
     }
 
+    @Override
+    @Transactional
+    public UserResponse updateUserStatus(
+            Long userId,
+            UpdateUserStatusRequest request,
+            Long currentAdminId
+    ) {
+        // 1. Kiểm tra request
+        if (request == null || request.status() == null) {
+            throw new BadRequestException("Status is required");
+        }
+
+        // 2. Kiểm tra ID người dùng
+        if (userId == null || userId <= 0) {
+            throw new BadRequestException("Invalid user ID");
+        }
+
+        // 3. Không cho Admin tự thay đổi trạng thái tài khoản
+        if (currentAdminId != null && currentAdminId.equals(userId)) {
+            throw new ForbiddenException(
+                    "You cannot change your own account status"
+            );
+        }
+
+        // 4. Tìm người dùng cần cập nhật
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
+
+        // 5. Kiểm tra trạng thái hiện tại
+        if (user.getStatus() == request.status()) {
+            return userMapper.toResponse(user);
+        }
+
+        // 6. Cập nhật trạng thái
+        user.setStatus(request.status());
+
+        // 7. Lưu thay đổi
+        User updatedUser = userRepository.save(user);
+
+        return userMapper.toResponse(updatedUser);
+    }
 
 }
