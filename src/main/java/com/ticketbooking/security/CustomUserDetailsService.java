@@ -4,6 +4,8 @@ package com.ticketbooking.security;
 import com.ticketbooking.entity.User;
 import com.ticketbooking.exception.ResourceNotFoundException;
 import com.ticketbooking.repository.UserRepository;
+import com.ticketbooking.enums.UserStatus;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
@@ -23,11 +25,14 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found"));
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getEmail())
-                .password(user.getPassword())
-                .roles(user.getRole().name())
-                .disabled(user.getStatus() != com.ticketbooking.enums.UserStatus.ACTIVE)
-                .build();
+        return new CustomUserDetails(
+                user.getId(),
+                user.getEmail(),
+                user.getPassword(),
+                user.getStatus() == UserStatus.ACTIVE,
+                AuthorityUtils.createAuthorityList(
+                        "ROLE_" + user.getRole().name()
+                )
+        );
     }
 }
