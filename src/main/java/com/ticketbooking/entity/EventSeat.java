@@ -44,6 +44,18 @@ public class EventSeat {
     protected EventSeat() {
     }
 
+    public EventSeat(
+            Event event,
+            Seat seat,
+            BigDecimal price,
+            EventSeatStatus status
+    ) {
+        this.event = event;
+        this.seat = seat;
+        this.price = price;
+        this.status = status;
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
