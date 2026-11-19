@@ -11,10 +11,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/events")
@@ -74,5 +71,14 @@ public class EventController {
                 sortBy,
                 direction
         );
+    }
+    // Lấy chi tiết sự kiện công khai theo ID
+    @GetMapping("/{id}")
+    public EventResponse getPublicEventById(
+            @PathVariable
+            @Positive(message = "Event ID must be greater than 0")
+            Long id
+    ) {
+        return eventService.getPublicEventById(id);
     }
 }

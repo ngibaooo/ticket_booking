@@ -16,4 +16,5 @@ public interface EventService {
             String sortBy,
             String direction
     );
+    EventResponse getPublicEventById(Long eventId);
 }

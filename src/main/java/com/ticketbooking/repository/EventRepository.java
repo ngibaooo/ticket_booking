@@ -9,7 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
@@ -42,5 +44,10 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("status") EventStatus status,
             @Param("venueId") Long venueId,
             Pageable pageable
+    );
+    // Lấy sự kiện theo ID, loại trừ DRAFT và CANCELLED
+    Optional<Event> findByIdAndStatusNotIn(
+            Long id,
+            Collection<EventStatus> statuses
     );
 }

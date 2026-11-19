@@ -5,6 +5,7 @@ import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.entity.Event;
 import com.ticketbooking.enums.EventStatus;
 import com.ticketbooking.exception.BadRequestException;
+import com.ticketbooking.exception.ResourceNotFoundException;
 import com.ticketbooking.mapper.EventMapper;
 import com.ticketbooking.repository.EventRepository;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -138,5 +140,27 @@ public class EventServiceImpl implements EventService {
         Sort sort = Sort.by(sortDirection, sortBy);
 
         return PageRequest.of(page, size, sort);
+    }
+
+    @Override
+    public EventResponse getPublicEventById(Long eventId) {
+
+        // 1. Kiểm tra eventId
+        if (eventId == null || eventId <= 0) {
+            throw new BadRequestException(
+                    "Event ID must be greater than 0"
+            );
+        }
+
+        // 2. Tìm sự kiện, loại trừ DRAFT và CANCELLED
+        Event event = eventRepository.findByIdAndStatusNotIn(
+                eventId,
+                List.of(EventStatus.DRAFT, EventStatus.CANCELLED)
+        ).orElseThrow(() -> new ResourceNotFoundException(
+                "Event not found with ID: " + eventId
+        ));
+
+        // 3. Chuyển Event thành EventResponse
+        return eventMapper.toResponse(event);
     }
 }
