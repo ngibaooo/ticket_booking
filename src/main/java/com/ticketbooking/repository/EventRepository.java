@@ -50,4 +50,17 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             Long id,
             Collection<EventStatus> statuses
     );
+    @Query("""
+    SELECT e FROM Event e
+    WHERE
+        LOWER(e.eventName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+    AND (:venueId IS NULL OR e.venue.id = :venueId)
+    AND (:status IS NULL OR e.status = :status)
+    """)
+    Page<Event> searchAdminEvents(
+            @Param("keyword") String keyword,
+            @Param("status") EventStatus status,
+            @Param("venueId") Long venueId,
+            Pageable pageable
+    );
 }

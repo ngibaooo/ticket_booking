@@ -17,4 +17,16 @@ public interface EventService {
             String direction
     );
     EventResponse getPublicEventById(Long eventId);
+
+    Page<EventResponse> getAdminEvents(
+            String keyword,
+            EventStatus status,
+            Long venueId,
+            int page,
+            int size,
+            String sortBy,
+            String direction
+    );
+
+    EventResponse getAdminEventById(Long eventId);
 }

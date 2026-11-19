@@ -163,4 +163,65 @@ public class EventServiceImpl implements EventService {
         // 3. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
     }
+
+    @Override
+    public Page<EventResponse> getAdminEvents(
+            String keyword,
+            EventStatus status,
+            Long venueId,
+            int page,
+            int size,
+            String sortBy,
+            String direction
+    ) {
+
+        // 1. Kiểm tra và chuẩn hóa keyword
+        keyword = normalizeKeyword(keyword);
+
+        // 2. Kiểm tra venueId
+        if (venueId != null && venueId <= 0) {
+            throw new BadRequestException(
+                    "Venue ID must be greater than 0"
+            );
+        }
+
+        // 3. Tạo Pageable
+        Pageable pageable = createPageable(
+                page,
+                size,
+                sortBy,
+                direction
+        );
+
+        // 4. Tìm kiếm tất cả sự kiện dành cho Admin
+        Page<Event> events = eventRepository.searchAdminEvents(
+                keyword,
+                status,
+                venueId,
+                pageable
+        );
+
+        // 5. Chuyển Event thành EventResponse
+        return events.map(eventMapper::toResponse);
+    }
+
+    @Override
+    public EventResponse getAdminEventById(Long eventId) {
+
+        // 1. Kiểm tra eventId
+        if (eventId == null || eventId <= 0) {
+            throw new BadRequestException(
+                    "Event ID must be greater than 0"
+            );
+        }
+
+        // 2. Tìm sự kiện theo ID, không lọc status
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Event not found with ID: " + eventId
+                ));
+
+        // 3. Chuyển Event thành EventResponse
+        return eventMapper.toResponse(event);
+    }
 }
