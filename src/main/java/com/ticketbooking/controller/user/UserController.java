@@ -1,5 +1,5 @@
 
-package com.ticketbooking.controller;
+package com.ticketbooking.controller.user;
 
 import com.ticketbooking.dto.user.UpdateUserRequest;
 import com.ticketbooking.dto.user.UserResponse;

@@ -9,6 +9,8 @@ import com.ticketbooking.exception.ResourceNotFoundException;
 import com.ticketbooking.mapper.UserMapper;
 import com.ticketbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,4 +55,15 @@ public class UserServiceImpl implements UserService {
 
         return userMapper.toResponse(updatedUser);
     }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getAllUsers(Pageable pageable) {
+
+        return userRepository.findAll(pageable)
+                .map(userMapper::toResponse);
+    }
+
+
 }
