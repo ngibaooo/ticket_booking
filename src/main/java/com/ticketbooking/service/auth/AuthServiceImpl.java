@@ -8,6 +8,7 @@ import com.ticketbooking.dto.user.UserResponse;
 import com.ticketbooking.entity.User;
 import com.ticketbooking.enums.UserStatus;
 import com.ticketbooking.exception.ConflictException;
+import com.ticketbooking.exception.ResourceNotFoundException;
 import com.ticketbooking.exception.UnauthorizedException;
 import com.ticketbooking.mapper.UserMapper;
 import com.ticketbooking.repository.UserRepository;
@@ -87,6 +88,15 @@ public class AuthServiceImpl implements AuthService {
                 "Bearer",
                 userMapper.toResponse(user)
         );
+    }
+    @Override
+    public UserResponse getCurrentUser(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
+
+        return userMapper.toResponse(user);
     }
 
     private String normalizeEmail(String email) {
