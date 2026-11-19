@@ -78,7 +78,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException("Account is disabled");
         }
 
         String token = jwtService.generateToken(user.getEmail());
