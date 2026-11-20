@@ -367,6 +367,38 @@ a {
   width: 100%;
 }
 
+.adm-password-wrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.adm-password-wrap input {
+  min-width: 0;
+  border-radius: var(--adm-radius-small) 0 0 var(--adm-radius-small);
+}
+
+.adm-password-toggle {
+  min-width: 54px;
+  border: 1px solid var(--adm-line);
+  border-left: 0;
+  border-radius: 0 var(--adm-radius-small) var(--adm-radius-small) 0;
+  background: var(--adm-canvas);
+  color: var(--adm-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.adm-field [aria-invalid="true"] {
+  border-color: var(--adm-danger);
+  box-shadow: 0 0 0 1px var(--adm-danger);
+}
+
+.adm-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .adm-login-note {
   border-left: 2px dashed var(--adm-accent);
   margin-top: var(--adm-space-5);

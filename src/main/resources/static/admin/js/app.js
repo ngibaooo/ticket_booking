@@ -58,8 +58,13 @@ function render() {
   const route = currentRoute();
   const session = getSession();
 
+  if (route === "login" && session) {
+    window.location.replace("#/dashboard");
+    return;
+  }
+
   if (route === "login" || !session) {
-    if (route !== "login") window.location.hash = "#/login";
+    if (route !== "login") window.location.replace("#/login");
     app.innerHTML = renderLogin();
     mountLogin();
     return;
@@ -73,7 +78,7 @@ function render() {
   app.innerHTML = shell(pages[route].render(), route, session);
   app.querySelector("[data-adm-sign-out]").addEventListener("click", () => {
     signOut();
-    window.location.hash = "#/login";
+    window.location.replace("#/login");
   });
 }
 
