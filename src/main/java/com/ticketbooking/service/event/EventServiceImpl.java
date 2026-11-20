@@ -4,6 +4,7 @@ package com.ticketbooking.service.event;
 import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
+import com.ticketbooking.dto.event.UpdateEventStatusRequest;
 import com.ticketbooking.entity.Event;
 import com.ticketbooking.entity.EventSeat;
 import com.ticketbooking.entity.Seat;
@@ -458,6 +459,102 @@ public class EventServiceImpl implements EventService {
         }
 
         // 7. Chuyển Event thành EventResponse
+        return eventMapper.toResponse(event);
+    }
+
+    // Kiểm tra quy tắc chuyển trạng thái sự kiện
+    private void validateEventStatusTransition(
+            Event event,
+            EventStatus newStatus
+    ) {
+
+        EventStatus currentStatus = event.getStatus();
+
+        // Không cho phép chuyển sang trạng thái giống hiện tại
+        if (currentStatus == newStatus) {
+            throw new BadRequestException(
+                    "Event is already in " + currentStatus + " status"
+            );
+        }
+
+        // Kiểm tra quy tắc chuyển trạng thái
+        boolean isValidTransition = switch (currentStatus) {
+            case DRAFT -> newStatus == EventStatus.UPCOMING;
+
+            case UPCOMING -> newStatus == EventStatus.OPEN;
+
+            case OPEN -> newStatus == EventStatus.CLOSED;
+
+            case CLOSED -> newStatus == EventStatus.COMPLETED;
+
+            case COMPLETED, CANCELLED -> false;
+        };
+
+        if (!isValidTransition) {
+            throw new BadRequestException(
+                    "Cannot change event status from "
+                            + currentStatus + " to " + newStatus
+            );
+        }
+
+        // Kiểm tra thời gian khi mở bán vé
+        if (newStatus == EventStatus.OPEN) {
+
+            LocalDateTime now = LocalDateTime.now();
+
+            if (now.isBefore(event.getSaleStartTime())) {
+                throw new BadRequestException(
+                        "Cannot open ticket sales before sale start time"
+                );
+            }
+
+            if (!now.isBefore(event.getSaleEndTime())) {
+                throw new BadRequestException(
+                        "Cannot open ticket sales after sale end time"
+                );
+            }
+        }
+
+        // Kiểm tra thời gian khi hoàn thành sự kiện
+        if (newStatus == EventStatus.COMPLETED) {
+
+            if (LocalDateTime.now().isBefore(event.getEndTime())) {
+                throw new BadRequestException(
+                        "Cannot complete an event before its end time"
+                );
+            }
+        }
+    }
+    @Override
+    @Transactional
+    public EventResponse updateEventStatus(
+            Long eventId,
+            UpdateEventStatusRequest request
+    ) {
+
+        // 1. Kiểm tra Event ID
+        if (eventId == null || eventId <= 0) {
+            throw new BadRequestException(
+                    "Event ID must be greater than 0"
+            );
+        }
+
+        // 2. Tìm Event
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Event not found with ID: " + eventId
+                ));
+
+        // 3. Kiểm tra quy tắc chuyển trạng thái
+        validateEventStatusTransition(
+                event,
+                request.status()
+        );
+
+        // 4. Cập nhật trạng thái
+        event.setStatus(request.status());
+
+        // 5. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
     }
 }
