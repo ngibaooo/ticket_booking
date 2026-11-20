@@ -5,6 +5,8 @@ import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
+import com.ticketbooking.dto.eventSeat.EventSeatResponse;
+import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
 import com.ticketbooking.entity.Event;
 import com.ticketbooking.entity.EventSeat;
 import com.ticketbooking.entity.Seat;
@@ -226,6 +228,57 @@ public class EventServiceImpl implements EventService {
 
         // 3. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
+    }
+    @Override
+    public EventSeatsResponse getPublicEventSeats(Long eventId) {
+
+        // 1. Kiểm tra Event ID
+        if (eventId == null || eventId <= 0) {
+            throw new BadRequestException(
+                    "Event ID must be greater than 0"
+            );
+        }
+
+        // 2. Tìm sự kiện công khai, loại trừ DRAFT và CANCELLED
+        Event event = eventRepository.findByIdAndStatusNotIn(
+                eventId,
+                List.of(EventStatus.DRAFT, EventStatus.CANCELLED)
+        ).orElseThrow(() -> new ResourceNotFoundException(
+                "Event not found with ID: " + eventId
+        ));
+
+        // 3. Lấy danh sách ghế của sự kiện kèm thông tin Seat
+        List<EventSeat> eventSeats =
+                eventSeatRepository.findByEventIdWithSeat(eventId);
+
+        // 4. Chuyển EventSeat thành EventSeatResponse
+        List<EventSeatResponse> seatResponses = eventSeats.stream()
+                .map(eventSeat -> {
+
+                    Seat seat = eventSeat.getSeat();
+
+                    return new EventSeatResponse(
+                            eventSeat.getId(),
+                            seat.getId(),
+                            seat.getSeatNumber(),
+                            seat.getRowName(),
+                            seat.getSeatType(),
+                            seat.getPositionX(),
+                            seat.getPositionY(),
+                            eventSeat.getPrice(),
+                            eventSeat.getStatus(),
+                            seat.getActive(),
+                            false
+                    );
+                })
+                .toList();
+
+        // 5. Trả về sơ đồ ghế của sự kiện
+        return new EventSeatsResponse(
+                event.getId(),
+                event.getEventName(),
+                seatResponses
+        );
     }
 
     @Override

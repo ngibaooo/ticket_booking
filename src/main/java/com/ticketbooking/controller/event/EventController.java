@@ -2,6 +2,7 @@
 package com.ticketbooking.controller.event;
 
 import com.ticketbooking.dto.event.EventResponse;
+import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
 import com.ticketbooking.enums.EventStatus;
 import com.ticketbooking.service.event.EventService;
 import jakarta.validation.constraints.Max;
@@ -80,5 +81,17 @@ public class EventController {
             Long id
     ) {
         return eventService.getPublicEventById(id);
+    }
+
+    // Lấy sơ đồ ghế của sự kiện công khai
+    @GetMapping("/{eventId}/seats")
+    public EventSeatsResponse getPublicEventSeats(
+
+            @PathVariable
+            @Positive(message = "Event ID must be greater than 0")
+            Long eventId
+
+    ) {
+        return eventService.getPublicEventSeats(eventId);
     }
 }

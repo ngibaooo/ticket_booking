@@ -5,6 +5,7 @@ import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
+import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
 import com.ticketbooking.enums.EventStatus;
 import org.springframework.data.domain.Page;
 
@@ -20,6 +21,8 @@ public interface EventService {
             String direction
     );
     EventResponse getPublicEventById(Long eventId);
+    // Lấy sơ đồ ghế của sự kiện công khai
+    EventSeatsResponse getPublicEventSeats(Long eventId);
 
     Page<EventResponse> getAdminEvents(
             String keyword,
@@ -43,4 +46,5 @@ public interface EventService {
             Long eventId,
             UpdateEventStatusRequest request
     );
+
 }
