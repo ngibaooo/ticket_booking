@@ -1,13 +1,23 @@
 
 package com.ticketbooking.service.event;
 
+import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.entity.Event;
+import com.ticketbooking.entity.EventSeat;
+import com.ticketbooking.entity.Seat;
+import com.ticketbooking.entity.Venue;
+import com.ticketbooking.enums.EventSeatStatus;
 import com.ticketbooking.enums.EventStatus;
+import com.ticketbooking.enums.SeatType;
+import com.ticketbooking.enums.VenueStatus;
 import com.ticketbooking.exception.BadRequestException;
 import com.ticketbooking.exception.ResourceNotFoundException;
 import com.ticketbooking.mapper.EventMapper;
 import com.ticketbooking.repository.EventRepository;
+import com.ticketbooking.repository.EventSeatRepository;
+import com.ticketbooking.repository.SeatRepository;
+import com.ticketbooking.repository.VenueRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +25,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -22,63 +34,30 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class EventServiceImpl implements EventService {
 
+    private final EventRepository eventRepository;
+    private final EventMapper eventMapper;
+    private final VenueRepository venueRepository;
+    private final SeatRepository seatRepository;
+    private final EventSeatRepository eventSeatRepository;
+
+    public EventServiceImpl(
+            EventRepository eventRepository,
+            EventMapper eventMapper,
+            VenueRepository venueRepository,
+            SeatRepository seatRepository,
+            EventSeatRepository eventSeatRepository
+    ) {
+        this.eventRepository = eventRepository;
+        this.eventMapper = eventMapper;
+        this.venueRepository = venueRepository;
+        this.seatRepository = seatRepository;
+        this.eventSeatRepository = eventSeatRepository;
+    }
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "startTime",
             "createdAt",
             "eventName"
     );
-
-    private final EventRepository eventRepository;
-    private final EventMapper eventMapper;
-
-    public EventServiceImpl(
-            EventRepository eventRepository,
-            EventMapper eventMapper
-    ) {
-        this.eventRepository = eventRepository;
-        this.eventMapper = eventMapper;
-    }
-
-    @Override
-    public Page<EventResponse> getPublicEvents(
-            String keyword,
-            EventStatus status,
-            Long venueId,
-            int page,
-            int size,
-            String sortBy,
-            String direction
-    ) {
-
-        // 1. Kiểm tra và chuẩn hóa keyword
-        keyword = normalizeKeyword(keyword);
-
-        // 2. Kiểm tra venueId
-        if (venueId != null && venueId <= 0) {
-            throw new BadRequestException(
-                    "Venue ID must be greater than 0"
-            );
-        }
-
-        // 3. Tạo Pageable
-        Pageable pageable = createPageable(
-                page,
-                size,
-                sortBy,
-                direction
-        );
-
-        // 4. Tìm kiếm sự kiện công khai
-        Page<Event> events = eventRepository.searchPublicEvents(
-                keyword,
-                status,
-                venueId,
-                pageable
-        );
-
-        // 5. Chuyển Event thành EventResponse
-        return events.map(eventMapper::toResponse);
-    }
 
     private String normalizeKeyword(String keyword) {
 
@@ -140,6 +119,83 @@ public class EventServiceImpl implements EventService {
         Sort sort = Sort.by(sortDirection, sortBy);
 
         return PageRequest.of(page, size, sort);
+    }
+    // Kiểm tra thời gian sự kiện
+    private void validateEventTimes(CreateEventRequest request) {
+
+        // End time phải sau Start time
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw new BadRequestException(
+                    "End time must be after start time"
+            );
+        }
+
+        // Sale end time phải sau Sale start time
+        if (!request.saleEndTime().isAfter(request.saleStartTime())) {
+            throw new BadRequestException(
+                    "Sale end time must be after sale start time"
+            );
+        }
+
+        // Sale end time không được sau Start time
+        if (request.saleEndTime().isAfter(request.startTime())) {
+            throw new BadRequestException(
+                    "Sale end time must be before or equal to event start time"
+            );
+        }
+    }
+
+    // Lấy giá theo loại ghế
+    private BigDecimal getPriceBySeatType(
+            SeatType seatType,
+            CreateEventRequest request
+    ) {
+
+        return switch (seatType) {
+            case STANDARD -> request.seatPrices().standardPrice();
+            case VIP -> request.seatPrices().vipPrice();
+        };
+    }
+
+    @Override
+    public Page<EventResponse> getPublicEvents(
+            String keyword,
+            EventStatus status,
+            Long venueId,
+            int page,
+            int size,
+            String sortBy,
+            String direction
+    ) {
+
+        // 1. Kiểm tra và chuẩn hóa keyword
+        keyword = normalizeKeyword(keyword);
+
+        // 2. Kiểm tra venueId
+        if (venueId != null && venueId <= 0) {
+            throw new BadRequestException(
+                    "Venue ID must be greater than 0"
+            );
+        }
+
+        // 3. Tạo Pageable
+        Pageable pageable = createPageable(
+                page,
+                size,
+                sortBy,
+                direction
+        );
+
+        // 4. Tìm kiếm sự kiện công khai
+        Page<Event> events = eventRepository.searchPublicEvents(
+                keyword,
+                status,
+                venueId,
+                pageable
+        );
+
+        // 5. Chuyển Event thành EventResponse
+        return events.map(eventMapper::toResponse);
     }
 
     @Override
@@ -223,5 +279,78 @@ public class EventServiceImpl implements EventService {
 
         // 3. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
+    }
+
+    @Override
+    @Transactional
+    public EventResponse createEvent(CreateEventRequest request) {
+
+        // 1. Kiểm tra thời gian sự kiện
+        validateEventTimes(request);
+
+        // 2. Tìm Venue
+        Venue venue = venueRepository.findById(request.venueId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Venue not found with ID: " + request.venueId()
+                ));
+
+        // 3. Kiểm tra Venue có đang hoạt động không
+        if (venue.getStatus() != VenueStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Cannot create event for an inactive venue"
+            );
+        }
+
+        // 4. Lấy danh sách ghế đang hoạt động của Venue
+        List<Seat> seats = seatRepository
+                .findByVenueIdAndIsActiveTrue(venue.getId());
+
+        if (seats.isEmpty()) {
+            throw new BadRequestException(
+                    "Cannot create event because this venue has no active seats"
+            );
+        }
+
+        // 5. Tạo Event
+        Event event = new Event(
+                venue,
+                request.eventName().trim(),
+                request.description(),
+                request.startTime(),
+                request.endTime(),
+                request.saleStartTime(),
+                request.saleEndTime(),
+                request.bannerUrl(),
+                EventStatus.DRAFT
+        );
+
+        // 6. Lưu Event để lấy ID
+        Event savedEvent = eventRepository.save(event);
+
+        // 7. Tạo EventSeat cho từng Seat
+        List<EventSeat> eventSeats = new ArrayList<>();
+
+        for (Seat seat : seats) {
+
+            BigDecimal price = getPriceBySeatType(
+                    seat.getSeatType(),
+                    request
+            );
+
+            EventSeat eventSeat = new EventSeat(
+                    savedEvent,
+                    seat,
+                    price,
+                    EventSeatStatus.AVAILABLE
+            );
+
+            eventSeats.add(eventSeat);
+        }
+
+        // 8. Lưu toàn bộ EventSeat
+        eventSeatRepository.saveAll(eventSeats);
+
+        // 9. Chuyển Event thành EventResponse
+        return eventMapper.toResponse(savedEvent);
     }
 }

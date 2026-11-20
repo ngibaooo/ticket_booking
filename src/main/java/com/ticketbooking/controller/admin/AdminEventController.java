@@ -1,15 +1,19 @@
 
 package com.ticketbooking.controller.admin;
 
+import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.enums.EventStatus;
 import com.ticketbooking.service.event.EventService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -82,5 +86,18 @@ public class AdminEventController {
             Long id
     ) {
         return eventService.getAdminEventById(id);
+    }
+
+    // Tạo sự kiện mới dành cho Admin
+    @PostMapping
+    public ResponseEntity<EventResponse> createEvent(
+            @Valid @RequestBody CreateEventRequest request
+    ) {
+
+        EventResponse response = eventService.createEvent(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 }
