@@ -143,7 +143,6 @@ Giá trị hợp lệ: `ACTIVE`, `INACTIVE`, `LOCKED`.
 | GET | `/api/v1/events`                               | Public | Lấy danh sách sự kiện (Customer & Guest) |
 | GET | `/api/v1/events/{id}`                          | Public | Xem chi tiết sự kiện (Customer & Guest)                    |
 | GET | `/api/v1/events/{eventId}/seats`               | Public | Xem sơ đồ và trạng thái ghế              |
-| GET | `/api/v1/events/{eventId}/seats/{eventSeatId}` | Public | Xem thông tin ghế thuộc sự kiện          |
 | GET | `/api/v1/admin/events`                         | ADMIN  | Admin lấy danh sách sự kiện              |
 | GET | `/api/v1/admin/events/{id}`                    | ADMIN  | Admin xem chi tiết sự kiện               |
 | POST | `/api/v1/admin/events`                         | ADMIN  | Tạo sự kiện                              |
