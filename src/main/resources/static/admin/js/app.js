@@ -54,7 +54,7 @@ function shell(content, route, session) {
   </div>`;
 }
 
-function render() {
+async function render() {
   const route = currentRoute();
   const session = getSession();
 
@@ -75,7 +75,8 @@ function render() {
     return;
   }
 
-  app.innerHTML = shell(pages[route].render(), route, session);
+  const pageContent = await pages[route].render();
+  app.innerHTML = shell(pageContent, route, session);
   app.querySelector("[data-adm-sign-out]").addEventListener("click", () => {
     signOut();
     window.location.replace("#/login");

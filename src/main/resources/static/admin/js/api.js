@@ -178,12 +178,20 @@ export async function setBookingStatus(id, status) {
 // Backend replacement: GET /api/admin/dashboard
 export async function getDashboardData() {
   const confirmed = data.bookings.filter(booking => booking.status === "CONFIRMED");
+  const revenueByEvent = data.events.map(event => ({
+    eventId: event.id,
+    revenue: confirmed
+      .filter(booking => booking.eventId === event.id)
+      .reduce((sum, booking) => sum + booking.total, 0)
+  }));
+
   return {
     revenue: confirmed.reduce((sum, booking) => sum + booking.total, 0),
     ticketsSold: confirmed.reduce((sum, booking) => sum + booking.seatLabels.length, 0),
     eventsOnSale: data.events.filter(event => event.status === "ON_SALE").length,
     pendingBookings: data.bookings.filter(booking => booking.status === "PENDING").length,
     events: copy(data.events),
+    revenueByEvent,
     recentBookings: copy(data.bookings).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
   };
 }
