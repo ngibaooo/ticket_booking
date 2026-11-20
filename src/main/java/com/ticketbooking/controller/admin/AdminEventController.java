@@ -3,6 +3,7 @@ package com.ticketbooking.controller.admin;
 
 import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
+import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.enums.EventStatus;
 import com.ticketbooking.service.event.EventService;
 import jakarta.validation.Valid;
@@ -99,5 +100,19 @@ public class AdminEventController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+    // Cập nhật thông tin sự kiện dành cho Admin
+    @PatchMapping("/{id}")
+    public ResponseEntity<EventResponse> updateEvent(
+            @PathVariable
+            @Positive(message = "Event ID must be greater than 0")
+            Long id,
+
+            @Valid @RequestBody UpdateEventRequest request
+    ) {
+
+        EventResponse response = eventService.updateEvent(id, request);
+
+        return ResponseEntity.ok(response);
     }
 }

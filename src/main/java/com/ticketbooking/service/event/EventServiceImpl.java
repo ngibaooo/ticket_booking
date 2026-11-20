@@ -3,6 +3,7 @@ package com.ticketbooking.service.event;
 
 import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
+import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.entity.Event;
 import com.ticketbooking.entity.EventSeat;
 import com.ticketbooking.entity.Seat;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -121,24 +123,29 @@ public class EventServiceImpl implements EventService {
         return PageRequest.of(page, size, sort);
     }
     // Kiểm tra thời gian sự kiện
-    private void validateEventTimes(CreateEventRequest request) {
+    private void validateEventTimes(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            LocalDateTime saleStartTime,
+            LocalDateTime saleEndTime
+    ) {
 
         // End time phải sau Start time
-        if (!request.endTime().isAfter(request.startTime())) {
+        if (!endTime.isAfter(startTime)) {
             throw new BadRequestException(
                     "End time must be after start time"
             );
         }
 
         // Sale end time phải sau Sale start time
-        if (!request.saleEndTime().isAfter(request.saleStartTime())) {
+        if (!saleEndTime.isAfter(saleStartTime)) {
             throw new BadRequestException(
                     "Sale end time must be after sale start time"
             );
         }
 
         // Sale end time không được sau Start time
-        if (request.saleEndTime().isAfter(request.startTime())) {
+        if (saleEndTime.isAfter(startTime)) {
             throw new BadRequestException(
                     "Sale end time must be before or equal to event start time"
             );
@@ -286,7 +293,12 @@ public class EventServiceImpl implements EventService {
     public EventResponse createEvent(CreateEventRequest request) {
 
         // 1. Kiểm tra thời gian sự kiện
-        validateEventTimes(request);
+        validateEventTimes(
+                request.startTime(),
+                request.endTime(),
+                request.saleStartTime(),
+                request.saleEndTime()
+        );
 
         // 2. Tìm Venue
         Venue venue = venueRepository.findById(request.venueId())
@@ -352,5 +364,100 @@ public class EventServiceImpl implements EventService {
 
         // 9. Chuyển Event thành EventResponse
         return eventMapper.toResponse(savedEvent);
+    }
+
+    @Override
+    @Transactional
+    public EventResponse updateEvent(
+            Long eventId,
+            UpdateEventRequest request
+    ) {
+
+        // 1. Kiểm tra Event ID
+        if (eventId == null || eventId <= 0) {
+            throw new BadRequestException(
+                    "Event ID must be greater than 0"
+            );
+        }
+
+        // 2. Tìm Event
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Event not found with ID: " + eventId
+                ));
+
+        // 3. Kiểm tra trạng thái Event
+        if (event.getStatus() != EventStatus.DRAFT
+                && event.getStatus() != EventStatus.UPCOMING) {
+
+            throw new BadRequestException(
+                    "Cannot update an event that is not in DRAFT or UPCOMING status"
+            );
+        }
+
+        // 4. Kết hợp dữ liệu mới và dữ liệu hiện tại
+        LocalDateTime startTime = request.startTime() != null
+                ? request.startTime()
+                : event.getStartTime();
+
+        LocalDateTime endTime = request.endTime() != null
+                ? request.endTime()
+                : event.getEndTime();
+
+        LocalDateTime saleStartTime = request.saleStartTime() != null
+                ? request.saleStartTime()
+                : event.getSaleStartTime();
+
+        LocalDateTime saleEndTime = request.saleEndTime() != null
+                ? request.saleEndTime()
+                : event.getSaleEndTime();
+
+        // 5. Kiểm tra tính hợp lệ của thời gian sau cập nhật
+        validateEventTimes(
+                startTime,
+                endTime,
+                saleStartTime,
+                saleEndTime
+        );
+
+        // 6. Cập nhật những trường được truyền lên
+
+        if (request.eventName() != null) {
+
+            if (request.eventName().isBlank()) {
+                throw new BadRequestException(
+                        "Event name must not be blank"
+                );
+            }
+
+            event.setEventName(request.eventName().trim());
+        }
+
+        if (request.description() != null) {
+            event.setDescription(request.description());
+        }
+
+        if (request.startTime() != null) {
+            event.setStartTime(startTime);
+        }
+
+        if (request.endTime() != null) {
+            event.setEndTime(endTime);
+        }
+
+        if (request.saleStartTime() != null) {
+            event.setSaleStartTime(saleStartTime);
+        }
+
+        if (request.saleEndTime() != null) {
+            event.setSaleEndTime(saleEndTime);
+        }
+
+        if (request.bannerUrl() != null) {
+            event.setBannerUrl(request.bannerUrl());
+        }
+
+        // 7. Chuyển Event thành EventResponse
+        return eventMapper.toResponse(event);
     }
 }
