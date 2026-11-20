@@ -1,0 +1,60 @@
+:root {
+  color-scheme: light;
+  font-family: "Manrope", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --adm-canvas: #f2f5f4;
+  --adm-surface: #ffffff;
+  --adm-ink: #202a32;
+  --adm-muted: #64717a;
+  --adm-line: #dce3e1;
+  --adm-accent: #176b61;
+  --adm-accent-hover: #10584f;
+  --adm-accent-soft: #e4f0ed;
+  --adm-danger: #a63d40;
+  --adm-danger-soft: #f8e9e9;
+  --adm-warning: #946313;
+  --adm-warning-soft: #f7f0df;
+  --adm-success: #21634f;
+  --adm-success-soft: #e6f1eb;
+  --adm-focus: #175dc1;
+  --adm-shadow: 0 8px 26px rgb(25 43 48 / 10%);
+
+  --adm-font-mono: "IBM Plex Mono", monospace;
+  --adm-space-1: 4px;
+  --adm-space-2: 8px;
+  --adm-space-3: 12px;
+  --adm-space-4: 16px;
+  --adm-space-5: 20px;
+  --adm-space-6: 24px;
+  --adm-space-8: 32px;
+  --adm-space-10: 40px;
+
+  --adm-sidebar-width: 232px;
+  --adm-header-height: 64px;
+  --adm-radius-small: 4px;
+  --adm-radius-medium: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --adm-canvas: #171d20;
+    --adm-surface: #20282c;
+    --adm-ink: #edf2f0;
+    --adm-muted: #a7b3b0;
+    --adm-line: #394448;
+    --adm-accent: #75b9aa;
+    --adm-accent-hover: #91c9bc;
+    --adm-accent-soft: #263d39;
+    --adm-danger: #f08a8d;
+    --adm-danger-soft: #432b2e;
+    --adm-warning: #e5bf70;
+    --adm-warning-soft: #423a29;
+    --adm-success: #8bc6a9;
+    --adm-success-soft: #293d33;
+    --adm-focus: #91bbff;
+    --adm-shadow: 0 8px 26px rgb(0 0 0 / 28%);
+  }
+}
