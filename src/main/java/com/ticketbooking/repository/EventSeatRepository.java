@@ -50,4 +50,18 @@ public interface EventSeatRepository extends JpaRepository<EventSeat, Long> {
     List<EventSeat> findByEventIdWithSeat(
             @Param("eventId") Long eventId
     );
+
+    // Lấy danh sách EventSeat chưa được đặt của một sự kiện
+    // Đồng thời fetch Seat để lấy SeatType
+    @Query("""
+        SELECT es
+        FROM EventSeat es
+        JOIN FETCH es.seat s
+        WHERE es.event.id = :eventId
+        AND es.status = :status
+        """)
+    List<EventSeat> findByEventIdAndStatusWithSeat(
+            @Param("eventId") Long eventId,
+            @Param("status") EventSeatStatus status
+    );
 }

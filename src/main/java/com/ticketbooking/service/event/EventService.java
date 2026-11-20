@@ -6,6 +6,7 @@ import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
 import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
+import com.ticketbooking.dto.eventSeat.UpdateEventSeatPricesRequest;
 import com.ticketbooking.enums.EventStatus;
 import org.springframework.data.domain.Page;
 
@@ -45,6 +46,11 @@ public interface EventService {
     EventResponse updateEventStatus(
             Long eventId,
             UpdateEventStatusRequest request
+    );
+    // Admin cập nhật giá STANDARD và VIP cho các ghế chưa được đặt
+    void updateEventSeatPrices(
+            Long eventId,
+            UpdateEventSeatPricesRequest request
     );
 
 }

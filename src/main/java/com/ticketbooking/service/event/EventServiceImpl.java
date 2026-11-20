@@ -7,6 +7,7 @@ import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
 import com.ticketbooking.dto.eventSeat.EventSeatResponse;
 import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
+import com.ticketbooking.dto.eventSeat.UpdateEventSeatPricesRequest;
 import com.ticketbooking.entity.Event;
 import com.ticketbooking.entity.EventSeat;
 import com.ticketbooking.entity.Seat;
@@ -610,4 +611,56 @@ public class EventServiceImpl implements EventService {
         // 5. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
     }
+
+
+    @Override
+    @Transactional
+    public void updateEventSeatPrices(
+            Long eventId,
+            UpdateEventSeatPricesRequest request
+    ) {
+
+        // 1. Kiểm tra Event ID
+        if (eventId == null || eventId <= 0) {
+            throw new BadRequestException(
+                    "Event ID must be greater than 0"
+            );
+        }
+
+        // 2. Tìm Event
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Event not found with ID: " + eventId
+                ));
+
+        // 3. Chỉ cho phép cập nhật giá khi Event ở DRAFT hoặc UPCOMING
+        if (event.getStatus() != EventStatus.DRAFT
+                && event.getStatus() != EventStatus.UPCOMING) {
+
+            throw new BadRequestException(
+                    "Cannot update seat prices when event is not in DRAFT or UPCOMING status"
+            );
+        }
+
+        // 4. Lấy danh sách ghế chưa được đặt
+        List<EventSeat> eventSeats =
+                eventSeatRepository.findByEventIdAndStatusWithSeat(
+                        eventId,
+                        EventSeatStatus.AVAILABLE
+                );
+
+        // 5. Cập nhật giá theo loại ghế
+        for (EventSeat eventSeat : eventSeats) {
+
+            Seat seat = eventSeat.getSeat();
+
+            BigDecimal newPrice = switch (seat.getSeatType()) {
+                case STANDARD -> request.standardPrice();
+                case VIP -> request.vipPrice();
+            };
+
+            eventSeat.setPrice(newPrice);
+        }
+    }
+
 }

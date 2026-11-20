@@ -5,6 +5,7 @@ import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
+import com.ticketbooking.dto.eventSeat.UpdateEventSeatPricesRequest;
 import com.ticketbooking.enums.EventStatus;
 import com.ticketbooking.service.event.EventService;
 import jakarta.validation.Valid;
@@ -135,4 +136,25 @@ public class AdminEventController {
 
         return ResponseEntity.ok(response);
     }
+
+    // Cập nhật giá STANDARD và VIP cho các ghế chưa được đặt
+    @PutMapping("/{eventId}/seats/prices")
+    public ResponseEntity<Void> updateEventSeatPrices(
+
+            @PathVariable
+            @Positive(message = "Event ID must be greater than 0")
+            Long eventId,
+
+            @Valid @RequestBody UpdateEventSeatPricesRequest request
+
+    ) {
+
+        eventService.updateEventSeatPrices(
+                eventId,
+                request
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
 }
