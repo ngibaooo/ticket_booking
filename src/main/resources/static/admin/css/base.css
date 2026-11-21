@@ -737,6 +737,65 @@ a {
   font-size: 12px;
 }
 
+.adm-event-form {
+  width: min(720px, 100%);
+}
+
+.adm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--adm-space-4);
+}
+
+.adm-form-grid:has(.adm-field:nth-child(3)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adm-tier-fieldset {
+  border: 1px solid var(--adm-line);
+  margin: 0;
+  padding: var(--adm-space-4);
+}
+
+.adm-tier-fieldset legend {
+  color: var(--adm-muted);
+  padding: 0 var(--adm-space-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.adm-event-table {
+  min-width: 980px;
+}
+
+.adm-table-subtext {
+  display: block;
+  color: var(--adm-muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.adm-status-draft,
+.adm-status-upcoming {
+  background: var(--adm-canvas);
+  color: var(--adm-muted) !important;
+}
+
+.adm-status-on_sale {
+  background: var(--adm-success-soft);
+  color: var(--adm-success) !important;
+}
+
+.adm-status-closed {
+  background: var(--adm-warning-soft);
+  color: var(--adm-warning) !important;
+}
+
+.adm-status-cancelled {
+  background: var(--adm-danger-soft);
+  color: var(--adm-danger) !important;
+}
+
 .adm-seatmap-toolbar {
   display: grid;
   grid-template-columns: minmax(220px, 1.5fr) 120px 150px auto;
@@ -1048,6 +1107,17 @@ a {
     width: min(100%, 460px);
     grid-column: 1;
     justify-self: center;
+  }
+}
+
+@media (max-width: 620px) {
+  .adm-modal {
+    width: 100%;
+  }
+
+  .adm-form-grid,
+  .adm-form-grid:has(.adm-field:nth-child(3)) {
+    grid-template-columns: 1fr;
   }
 }
 
