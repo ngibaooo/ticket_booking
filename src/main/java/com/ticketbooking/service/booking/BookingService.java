@@ -1,4 +1,12 @@
 package com.ticketbooking.service.booking;
 
-public class BookingService {
+import java.util.List;
+
+public interface BookingService {
+
+    void holdSeats(
+            Long eventId,
+            List<Long> eventSeatIds,
+            Long customerId
+    );
 }
