@@ -50,8 +50,7 @@ async function mountBookings(container) {
           <td class="adm-mono">${formatMoney(booking.total)}</td>
           <td><span class="adm-status adm-status-${booking.status.toLowerCase()}">${bookingStatusLabels[booking.status] || booking.status}</span></td>
           <td><div class="adm-row-actions">
-            ${booking.status === "PENDING" ? `<button class="adm-button adm-button-confirm" type="button" data-adm-confirm-booking="${escapeHtml(booking.id)}">Xác nhận</button>
-            <button class="adm-button adm-button-danger" type="button" data-adm-cancel-booking="${escapeHtml(booking.id)}" data-adm-customer-name="${escapeHtml(booking.customerName)}">Hủy đơn</button>` : "<span class="adm-table-subtext">Không có thao tác</span>"}
+            ${booking.status === "PENDING" ? "<button class=\"adm-button adm-button-confirm\" type=\"button\" data-adm-confirm-booking=\"" + escapeHtml(booking.id) + "\">Xác nhận</button> <button class=\"adm-button adm-button-danger\" type=\"button\" data-adm-cancel-booking=\"" + escapeHtml(booking.id) + "\" data-adm-customer-name=\"" + escapeHtml(booking.customerName) + "\">Hủy đơn</button>" : "<span class=\"adm-table-subtext\">Không có thao tác</span>"}
           </div></td>
         </tr>`;
       }).join("")}</tbody>
@@ -107,4 +106,9 @@ export async function renderBookings() {
   const holder = document.createElement("div");
   await mountBookings(holder);
   return holder.innerHTML;
+}
+
+export function initBookings(root) {
+  const container = root.querySelector(".adm-page");
+  if (container) mountBookings(container);
 }

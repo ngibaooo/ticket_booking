@@ -1,11 +1,13 @@
-import { deleteEvent, listEvents, listVenues, saveEvent } from "../api.js";
+import { listEvents, listVenues, saveEvent } from "../api.js";
 import { escapeHtml, formatDate, formatMoney, notify, renderEmptyState, renderPageHeading } from "../ui.js";
 
 const eventStatusLabels = {
   DRAFT: "Nháp",
   UPCOMING: "Sắp mở bán",
+  OPEN: "Đang bán",
   ON_SALE: "Đang bán",
   CLOSED: "Đã kết thúc",
+  COMPLETED: "Đã hoàn thành",
   CANCELLED: "Đã hủy"
 };
 
@@ -19,7 +21,7 @@ function toInputDateTime(value) {
 
 function eventForm(event, venues) {
   const isEdit = Boolean(event);
-  const prices = event?.pricesByTier || { VIP: 1200000, STANDARD: 750000, ECONOMY: 450000 };
+  const prices = event?.pricesByTier || { VIP: 1200000, STANDARD: 750000 };
   return `<form class="adm-modal-form adm-event-form" id="adm-event-form" novalidate>
     <div class="adm-modal-heading"><div><span class="adm-modal-kicker">SỰ KIỆN</span><h2>${isEdit ? "Cập nhật sự kiện" : "Tạo sự kiện"}</h2></div>
       <button class="adm-button adm-button-quiet" type="button" data-adm-modal-close aria-label="Đóng hộp thoại">Đóng</button>
@@ -41,14 +43,15 @@ function eventForm(event, venues) {
         </div>
       </div>
       <div class="adm-form-grid">
-        <div class="adm-field"><label for="adm-event-starts">Thời gian diễn ra</label><input id="adm-event-starts" name="startsAt" type="datetime-local" value="${toInputDateTime(event?.startsAt)}"></div>
+        <div class="adm-field"><label for="adm-event-starts">Bắt đầu diễn ra</label><input id="adm-event-starts" name="startsAt" type="datetime-local" value="${toInputDateTime(event?.startsAt)}"></div>
+        <div class="adm-field"><label for="adm-event-ends">Kết thúc diễn ra</label><input id="adm-event-ends" name="endsAt" type="datetime-local" value="${toInputDateTime(event?.endsAt)}"></div>
         <div class="adm-field"><label for="adm-event-sale-start">Mở bán vé</label><input id="adm-event-sale-start" name="saleStartsAt" type="datetime-local" value="${toInputDateTime(event?.saleStartsAt)}"></div>
         <div class="adm-field"><label for="adm-event-sale-end">Kết thúc bán vé</label><input id="adm-event-sale-end" name="saleEndsAt" type="datetime-local" value="${toInputDateTime(event?.saleEndsAt)}"></div>
       </div>
       <fieldset class="adm-tier-fieldset"><legend>Giá theo hạng</legend>
         <div class="adm-form-grid">
-          ${[["VIP", "VIP"], ["STANDARD", "Thường"], ["ECONOMY", "Tiết kiệm"]].map(([tier, label]) => `<div class="adm-field"><label for="adm-event-price-${tier.toLowerCase()}">${label} (VND)</label>
-            <input id="adm-event-price-${tier.toLowerCase()}" name="price-${tier}" type="number" min="0" step="1000" value="${Number(prices[tier]) || 0}">
+          ${[["VIP", "VIP"], ["STANDARD", "Thường"]].map(([tier, label]) => `<div class="adm-field"><label for="adm-event-price-${tier.toLowerCase()}">${label} (VND)</label>
+            <input id="adm-event-price-${tier.toLowerCase()}" name="price-${tier}" type="number" min="1" step="1000" value="${Number(prices[tier]) || 0}">
           </div>`).join("")}
         </div>
       </fieldset>
@@ -90,6 +93,7 @@ function openEventModal(event, venues, refresh) {
 
     const name = nameInput.value.trim();
     const startsAt = modal.querySelector("#adm-event-starts").value;
+    const endsAt = modal.querySelector("#adm-event-ends").value;
     const saleStartsAt = modal.querySelector("#adm-event-sale-start").value;
     const saleEndsAt = modal.querySelector("#adm-event-sale-end").value;
 
@@ -100,8 +104,8 @@ function openEventModal(event, venues, refresh) {
       return;
     }
 
-    if (!startsAt || !saleStartsAt || !saleEndsAt) {
-      error.textContent = "Nhập đầy đủ thời gian diễn ra, mở bán và kết thúc bán.";
+    if (!startsAt || !endsAt || !saleStartsAt || !saleEndsAt) {
+      error.textContent = "Nhập đầy đủ thời gian bắt đầu, kết thúc, mở bán và kết thúc bán.";
       return;
     }
 
@@ -110,19 +114,23 @@ function openEventModal(event, venues, refresh) {
       return;
     }
 
+    if (new Date(endsAt) <= new Date(startsAt)) {
+      error.textContent = "Thời gian kết thúc diễn ra phải sau thời gian bắt đầu.";
+      return;
+    }
+
     if (new Date(startsAt) <= new Date(saleEndsAt)) {
-      error.textContent = "Thời gian kết thúc bán vé phải trước thời gian diễn ra.";
+      error.textContent = "Thời gian kết thúc bán vé phải trước thời gian bắt đầu diễn ra.";
       return;
     }
 
     const pricesByTier = {
       VIP: Number(modal.querySelector("#adm-event-price-vip").value),
-      STANDARD: Number(modal.querySelector("#adm-event-price-standard").value),
-      ECONOMY: Number(modal.querySelector("#adm-event-price-economy").value)
+      STANDARD: Number(modal.querySelector("#adm-event-price-standard").value)
     };
 
-    if (Object.values(pricesByTier).some(price => !Number.isFinite(price) || price < 0)) {
-      error.textContent = "Giá vé không được âm hoặc để trống.";
+    if (Object.values(pricesByTier).some(price => !Number.isFinite(price) || price <= 0)) {
+      error.textContent = "Giá Standard và VIP phải lớn hơn 0.";
       return;
     }
 
@@ -134,9 +142,10 @@ function openEventModal(event, venues, refresh) {
         id: event?.id,
         name,
         venueId: modal.querySelector("#adm-event-venue").value,
-        startsAt: new Date(startsAt).toISOString(),
-        saleStartsAt: new Date(saleStartsAt).toISOString(),
-        saleEndsAt: new Date(saleEndsAt).toISOString(),
+        startsAt,
+        endsAt,
+        saleStartsAt,
+        saleEndsAt,
         status: modal.querySelector("#adm-event-status").value,
         pricesByTier,
         capacity: event?.capacity || 0
@@ -168,7 +177,7 @@ async function mountEvents(container) {
       <thead><tr><th>Sự kiện</th><th>Địa điểm</th><th>Diễn ra</th><th>Bán vé</th><th>Giá từ</th><th>Trạng thái</th><th><span class="adm-visually-hidden">Thao tác</span></th></tr></thead>
       <tbody>${events.map(event => {
         const venue = venues.find(item => item.id === event.venueId);
-        const lowestPrice = Math.min(...Object.values(event.pricesByTier || {}).map(Number).filter(Number.isFinite));
+        const lowestPrice = event.pricesByTier ? Math.min(...Object.values(event.pricesByTier).map(Number).filter(Number.isFinite)) : 0;
         return `<tr>
           <td><strong>${escapeHtml(event.name)}</strong><span class="adm-table-code">${escapeHtml(event.id)}</span></td>
           <td>${escapeHtml(venue?.name || "Chưa gán địa điểm")}</td>
@@ -178,7 +187,6 @@ async function mountEvents(container) {
           <td><span class="adm-status adm-status-${event.status.toLowerCase()}">${eventStatusLabels[event.status] || event.status}</span></td>
           <td><div class="adm-row-actions">
             <button class="adm-button adm-button-quiet" type="button" data-adm-edit-event="${escapeHtml(event.id)}">Sửa</button>
-            <button class="adm-button adm-button-danger" type="button" data-adm-delete-event="${escapeHtml(event.id)}" data-adm-event-name="${escapeHtml(event.name)}">Xóa</button>
           </div></td>
         </tr>`;
       }).join("")}</tbody>
@@ -191,22 +199,15 @@ async function mountEvents(container) {
       openEventModal(event, venues, () => mountEvents(container));
     });
   });
-  container.querySelectorAll("[data-adm-delete-event]").forEach(button => {
-    button.addEventListener("click", async () => {
-      if (!window.confirm(`Xóa sự kiện “${button.dataset.admEventName}”?`)) return;
-      try {
-        await deleteEvent(button.dataset.admDeleteEvent);
-        notify("Đã xóa sự kiện.");
-        await mountEvents(container);
-      } catch (reason) {
-        notify(reason.message || "Không thể xóa sự kiện.", "error");
-      }
-    });
-  });
 }
 
 export async function renderEvents() {
   const holder = document.createElement("div");
   await mountEvents(holder);
   return holder.innerHTML;
+}
+
+export function initEvents(root) {
+  const container = root.querySelector(".adm-page");
+  if (container) mountEvents(container);
 }

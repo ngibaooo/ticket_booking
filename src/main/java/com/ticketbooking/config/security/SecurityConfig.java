@@ -53,6 +53,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/events/**")
                         .permitAll()
 
+                        // Static admin frontend
+                        .requestMatchers(HttpMethod.GET, "/admin/**")
+                        .permitAll()
+
                         // Admin-only APIs
                         .requestMatchers("/api/v1/admin/**")
                         .hasRole("ADMIN")

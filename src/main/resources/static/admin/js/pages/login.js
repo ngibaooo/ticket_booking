@@ -1,4 +1,4 @@
-import { signInDemo } from "../api.js";
+import { signIn } from "../api.js";
 import { notify, escapeHtml } from "../ui.js";
 
 export function renderLogin() {
@@ -8,7 +8,7 @@ export function renderLogin() {
         <span class="adm-brand-mark" aria-hidden="true">VN</span><span>Vé Nhà</span>
       </a>
       <h1 id="adm-login-title">Đăng nhập quản trị</h1>
-      <p>Nhập tài khoản thử để mở giao diện quản trị.</p>
+      <p>Nhập tài khoản quản trị đã được cấp để tiếp tục.</p>
       <form class="adm-login-fields" id="adm-login-form" novalidate>
         <div class="adm-field">
           <label for="adm-email">Email</label>
@@ -24,8 +24,7 @@ export function renderLogin() {
         <p class="adm-login-error" id="adm-login-error" aria-live="polite"></p>
         <button class="adm-button adm-button-primary" type="submit" data-adm-login-submit>Đăng nhập</button>
       </form>
-      <p class="adm-login-note">Tài khoản thử: <span class="adm-mono">admin@example.test</span> / <span class="adm-mono">demo1234</span></p>
-      <p class="adm-login-note">Chế độ mô phỏng: chưa xác thực bằng backend.</p>
+      <p class="adm-login-note">Phiên đăng nhập được xác thực bằng tài khoản Admin của hệ thống.</p>
     </section>
   </main>`;
 }
@@ -65,7 +64,7 @@ export function mountLogin() {
 
     if (!email.validity.valid) {
       email.setAttribute("aria-invalid", "true");
-      error.textContent = "Email chưa đúng định dạng, ví dụ: admin@example.test.";
+      error.textContent = "Email chưa đúng định dạng. Nhập email tài khoản Admin được cấp.";
       email.focus();
       return;
     }
@@ -81,13 +80,13 @@ export function mountLogin() {
     submit.textContent = "Đang đăng nhập…";
 
     try {
-      await signInDemo(emailValue, passwordValue);
+      await signIn(emailValue, passwordValue);
       notify("Đã đăng nhập vào phần quản trị.");
       window.location.replace("#/dashboard");
     } catch (reason) {
       email.setAttribute("aria-invalid", "true");
       password.setAttribute("aria-invalid", "true");
-      error.textContent = "Email hoặc mật khẩu không đúng. Dùng tài khoản thử trong phần ghi chú.";
+      error.textContent = reason.message === "Tài khoản này không có quyền quản trị." ? reason.message : "Email hoặc mật khẩu không đúng, hoặc tài khoản chưa được kích hoạt.";
       notify(reason.message || "Không thể đăng nhập.", "error");
       password.select();
     } finally {

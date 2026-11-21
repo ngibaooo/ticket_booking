@@ -156,3 +156,8 @@ export async function renderVenues() {
   await mountVenuePage(holder);
   return holder.innerHTML;
 }
+
+export function initVenues(root) {
+  const container = root.querySelector(".adm-page");
+  if (container) mountVenuePage(container);
+}

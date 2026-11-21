@@ -1,10 +1,10 @@
 import { getSession, signOut } from "./api.js";
 import { renderLogin, mountLogin } from "./pages/login.js";
 import { renderDashboard } from "./pages/dashboard.js";
-import { renderVenues } from "./pages/venues.js";
+import { initVenues, renderVenues } from "./pages/venues.js";
 import { initSeatMap, renderSeatMap } from "./pages/seatmap.js";
-import { renderEvents } from "./pages/events.js";
-import { renderBookings } from "./pages/bookings.js";
+import { initEvents, renderEvents } from "./pages/events.js";
+import { initBookings, renderBookings } from "./pages/bookings.js";
 import { escapeHtml } from "./ui.js";
 
 const app = document.querySelector("#adm-app");
@@ -83,6 +83,9 @@ async function render() {
   });
 
   if (route === "seatmap") initSeatMap(app);
+  if (route === "venues") initVenues(app);
+  if (route === "events") initEvents(app);
+  if (route === "bookings") initBookings(app);
 }
 
 window.addEventListener("hashchange", render);
