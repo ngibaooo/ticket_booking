@@ -1,101 +1,84 @@
 import { getSeatMap, listVenues, saveSeatMap } from "../api.js";
 import { escapeHtml, notify, renderEmptyState, renderPageHeading } from "../ui.js";
 
-const tierNames = {
-  VIP: "VIP",
-  STANDARD: "Thường",
-  ECONOMY: "Tiết kiệm"
-};
+const tierNames = { VIP: "VIP", STANDARD: "Thường" };
 
 function rowLabel(index) {
   return String.fromCharCode(65 + index);
 }
 
-function normalizeSeatMap(seatMap, rows, seatsPerRow) {
-  const next = {
-    rows,
-    seatsPerRow,
-    pricesByRow: {},
-    lockedSeats: [...(seatMap?.lockedSeats || [])]
-  };
-
-  for (let index = 0; index < rows; index += 1) {
-    const label = rowLabel(index);
-    next.pricesByRow[label] = seatMap?.pricesByRow?.[label] || (index < 2 ? "VIP" : index < 5 ? "STANDARD" : "ECONOMY");
-  }
-
-  const validLabels = new Set();
-  for (let row = 0; row < rows; row += 1) {
-    for (let seat = 1; seat <= seatsPerRow; seat += 1) {
-      validLabels.add(`${rowLabel(row)}${String(seat).padStart(2, "0")}`);
-    }
-  }
-  next.lockedSeats = next.lockedSeats.filter(label => validLabels.has(label));
-  return next;
+function normalizePhysicalSeats(payload) {
+  const source = payload?.data?.seats ? payload.data : payload;
+  const seats = Array.isArray(source) ? source : (Array.isArray(source?.seats) ? source.seats : []);
+  return seats.map(seat => ({
+    seatId: seat.seatId,
+    seatNumber: seat.seatNumber,
+    rowName: seat.rowName,
+    seatType: seat.seatType,
+    positionX: Number(seat.positionX),
+    positionY: Number(seat.positionY),
+    isActive: seat.isActive !== false
+  }));
 }
 
-function renderSeatGrid(seatMap) {
-  const rows = [];
-  for (let rowIndex = 0; rowIndex < seatMap.rows; rowIndex += 1) {
-    const label = rowLabel(rowIndex);
-    const seats = [];
-    for (let seatIndex = 1; seatIndex <= seatMap.seatsPerRow; seatIndex += 1) {
-      const seatLabel = `${label}${String(seatIndex).padStart(2, "0")}`;
-      const locked = seatMap.lockedSeats.includes(seatLabel);
-      seats.push(`<button class="adm-seat adm-seat-${seatMap.pricesByRow[label].toLowerCase()}${locked ? " adm-seat-lock" : ""}" type="button" data-adm-seat="${seatLabel}" aria-pressed="${locked}" title="${locked ? "Mở" : "Khóa"} ghế ${seatLabel}">
-        <span>${seatLabel}</span><small>${locked ? "Khoá" : tierNames[seatMap.pricesByRow[label]]}</small>
-      </button>`);
-    }
-    rows.push(`<div class="adm-seat-row"><strong class="adm-seat-row-label">${label}</strong><div class="adm-seat-line">${seats.join("")}</div>
-      <label class="adm-row-tier"><span>Hạng hàng ${label}</span><select data-adm-row-tier="${label}" aria-label="Hạng giá hàng ${label}">
-        ${["VIP", "STANDARD", "ECONOMY"].map(tier => `<option value="${tier}"${seatMap.pricesByRow[label] === tier ? " selected" : ""}>${tierNames[tier]}</option>`).join("")}
-      </select></label>
-    </div>`);
-  }
-  return rows.join("");
+function seatsByRow(seats) {
+  const groups = new Map();
+  seats.forEach(seat => {
+    if (!groups.has(seat.rowName)) groups.set(seat.rowName, []);
+    groups.get(seat.rowName).push(seat);
+  });
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([rowName, rowSeats]) => [
+    rowName,
+    rowSeats.sort((a, b) => a.positionX - b.positionX)
+  ]);
+}
+
+function renderSeatGrid(seats) {
+  return seatsByRow(seats).map(([rowName, rowSeats]) => `<div class="adm-seat-row">
+    <strong class="adm-seat-row-label">${escapeHtml(rowName)}</strong>
+    <div class="adm-seat-line">${rowSeats.map(seat => `<button class="adm-seat adm-seat-${String(seat.seatType).toLowerCase()}${seat.isActive ? "" : " adm-seat-lock"}" type="button" data-adm-seat-id="${escapeHtml(seat.seatId)}" data-adm-seat-number="${escapeHtml(seat.seatNumber)}" aria-pressed="${seat.isActive ? "false" : "true"}" title="${escapeHtml(seat.seatNumber)} tại (${seat.positionX}, ${seat.positionY})">
+      <span>${escapeHtml(seat.seatNumber)}</span><small>${seat.isActive ? (tierNames[seat.seatType] || seat.seatType) : "Khoá"}</small>
+    </button>`).join("")}</div>
+    <label class="adm-row-tier"><span>Hạng hàng ${escapeHtml(rowName)}</span>
+      <select data-adm-row-type="${escapeHtml(rowName)}" aria-label="Hạng ghế hàng ${escapeHtml(rowName)}">
+        ${["VIP", "STANDARD"].map(type => `<option value="${type}"${rowSeats.every(seat => seat.seatType === type) ? " selected" : ""}>${tierNames[type]}</option>`).join("")}
+      </select>
+    </label>
+  </div>`).join("");
 }
 
 export async function renderSeatMap() {
   const venues = await listVenues();
   if (!venues.length) {
-    return `${renderPageHeading("Sơ đồ ghế", "Chỉnh hàng ghế, hạng giá và ghế khóa")}
-      ${renderEmptyState("Chưa có địa điểm", "Thêm địa điểm trước, sau đó quay lại để thiết lập sơ đồ ghế.")}`;
+    return `${renderPageHeading("Sơ đồ ghế", "Ghế vật lý theo seatNumber, rowName và tọa độ")}
+      ${renderEmptyState("Chưa có địa điểm", "Thêm địa điểm trước, sau đó quay lại thiết lập ghế.")}`;
   }
 
-  const selectedVenueId = venues.find(venue => venue.seatMap?.rows)?.id || venues[0].id;
-  let venue = venues.find(item => item.id === selectedVenueId);
-  let seatMap = await getSeatMap(selectedVenueId);
-  seatMap = normalizeSeatMap(seatMap, Number(seatMap?.rows) || 8, Number(seatMap?.seatsPerRow) || 12);
+  const seatResponse = await getSeatMap(venues[0].id);
+  const seats = normalizePhysicalSeats(seatResponse);
 
-  const heading = renderPageHeading("Sơ đồ ghế", "Chọn địa điểm và cấu hình bố trí ghế", `<button class="adm-button adm-button-primary" type="button" data-adm-save-seatmap>Lưu sơ đồ</button>`);
-  const shell = `${heading}
+  return `<div data-adm-seatmap-page>
+    ${renderPageHeading("Sơ đồ ghế", "Ghế vật lý, hạng ghế và trạng thái hoạt động", `<button class="adm-button adm-button-primary" type="button" data-adm-save-seats>Lưu ghế</button>`)}
     <div class="adm-seatmap-toolbar">
       <div class="adm-field"><label for="adm-seatmap-venue">Địa điểm</label>
-        <select id="adm-seatmap-venue">${venues.map(item => `<option value="${escapeHtml(item.id)}"${item.id === selectedVenueId ? " selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
+        <select id="adm-seatmap-venue">${venues.map(venue => `<option value="${escapeHtml(venue.id)}">${escapeHtml(venue.venueName)}</option>`).join("")}</select>
       </div>
-      <div class="adm-field"><label for="adm-seatmap-rows">Số hàng</label><input id="adm-seatmap-rows" type="number" min="1" max="26" value="${seatMap.rows}"></div>
-      <div class="adm-field"><label for="adm-seatmap-seats">Ghế mỗi hàng</label><input id="adm-seatmap-seats" type="number" min="1" max="30" value="${seatMap.seatsPerRow}"></div>
-      <button class="adm-button" type="button" data-adm-rebuild-seatmap>Tạo lại</button>
+      <button class="adm-button" type="button" data-adm-add-seat>Thêm ghế</button>
     </div>
     <div class="adm-seatmap-layout">
-      <section class="adm-seatmap-canvas" aria-label="Sơ đồ ghế của ${escapeHtml(venue.name)}">
+      <section class="adm-seatmap-canvas" aria-label="Sơ đồ ghế vật lý">
         <div class="adm-stage" aria-hidden="true">Sân khấu</div>
-        <div class="adm-seat-grid" data-adm-seat-grid>${renderSeatGrid(seatMap)}</div>
-        <div class="adm-seat-legend" aria-label="Chú thích ghế">
-          <span><i class="adm-seat-key adm-seat-key-vip"></i>VIP</span>
-          <span><i class="adm-seat-key adm-seat-key-standard"></i>Thường</span>
-          <span><i class="adm-seat-key adm-seat-key-economy"></i>Tiết kiệm</span>
-          <span><i class="adm-seat-key adm-seat-key-lock"></i>Đã khóa</span>
-        </div>
+        <div class="adm-seat-grid" data-adm-seat-grid>${renderSeatGrid(seats)}</div>
+        <div class="adm-seat-legend"><span><i class="adm-seat-key adm-seat-key-vip"></i>VIP</span><span><i class="adm-seat-key adm-seat-key-standard"></i>Thường</span><span><i class="adm-seat-key adm-seat-key-lock"></i>Không hoạt động</span></div>
+        <p class="adm-login-note">Thêm ghế mới gọi POST từng ghế một với seatNumber, rowName, seatType, positionX và positionY.</p>
       </section>
-      <aside class="adm-seatmap-summary" aria-label="Tóm tắt sơ đồ">
-        <div><span>Tổng ghế</span><strong class="adm-mono" data-adm-seat-count>0</strong></div>
-        <div><span>Đang khóa</span><strong class="adm-mono" data-adm-lock-count>0</strong></div>
-        <div><span>Có thể bán</span><strong class="adm-mono" data-adm-sale-count>0</strong></div>
+      <aside class="adm-seatmap-summary">
+        <div><span>Tổng ghế</span><strong class="adm-mono" data-adm-seat-count>${seats.length}</strong></div>
+        <div><span>Không hoạt động</span><strong class="adm-mono" data-adm-lock-count>${seats.filter(seat => !seat.isActive).length}</strong></div>
+        <div><span>Đang hoạt động</span><strong class="adm-mono" data-adm-sale-count>${seats.filter(seat => seat.isActive).length}</strong></div>
       </aside>
-    </div>`;
-
-  return `<div data-adm-seatmap-page>${shell}</div>`;
+    </div>
+  </div>`;
 }
 
 export async function initSeatMap(root) {
@@ -103,85 +86,62 @@ export async function initSeatMap(root) {
   if (!page) return;
 
   const venueSelect = page.querySelector("#adm-seatmap-venue");
-  const rowsInput = page.querySelector("#adm-seatmap-rows");
-  const seatsInput = page.querySelector("#adm-seatmap-seats");
   const grid = page.querySelector("[data-adm-seat-grid]");
 
-  const getCurrentMap = () => {
-    const rows = Math.max(1, Math.min(26, Number(rowsInput.value) || 8));
-    const seatsPerRow = Math.max(1, Math.min(30, Number(seatsInput.value) || 12));
-    const lockedSeats = [...page.querySelectorAll("[data-adm-seat]")]
-      .filter(button => button.getAttribute("aria-pressed") === "true")
-      .map(button => button.dataset.admSeat);
-    const pricesByRow = {};
-    page.querySelectorAll("[data-adm-row-tier]").forEach(select => {
-      pricesByRow[select.dataset.admRowTier] = select.value;
-    });
-    return normalizeSeatMap({ pricesByRow, lockedSeats }, rows, seatsPerRow);
+  const updateCounts = seats => {
+    page.querySelector("[data-adm-seat-count]").textContent = String(seats.length);
+    page.querySelector("[data-adm-lock-count]").textContent = String(seats.filter(seat => !seat.isActive).length);
+    page.querySelector("[data-adm-sale-count]").textContent = String(seats.filter(seat => seat.isActive).length);
   };
 
-  const updateCounts = seatMap => {
-    const total = seatMap.rows * seatMap.seatsPerRow;
-    page.querySelector("[data-adm-seat-count]").textContent = String(total);
-    page.querySelector("[data-adm-lock-count]").textContent = String(seatMap.lockedSeats.length);
-    page.querySelector("[data-adm-sale-count]").textContent = String(total - seatMap.lockedSeats.length);
-  };
-
-  const refreshGrid = seatMap => {
-    grid.innerHTML = renderSeatGrid(seatMap);
-    updateCounts(seatMap);
-  };
-
-  const loadVenue = async () => {
-    const seatMap = await getSeatMap(venueSelect.value);
-    const normalized = normalizeSeatMap(seatMap, Number(seatMap?.rows) || 8, Number(seatMap?.seatsPerRow) || 12);
-    rowsInput.value = String(normalized.rows);
-    seatsInput.value = String(normalized.seatsPerRow);
-    refreshGrid(normalized);
-  };
-
-  page.querySelector("[data-adm-rebuild-seatmap]").addEventListener("click", () => {
-    const rows = Math.max(1, Math.min(26, Number(rowsInput.value) || 8));
-    const seats = Math.max(1, Math.min(30, Number(seatsInput.value) || 12));
-    refreshGrid(normalizeSeatMap(getCurrentMap(), rows, seats));
+  const getRenderedSeats = () => [...grid.querySelectorAll("[data-adm-seat-id]")].map(button => {
+    const row = button.closest(".adm-seat-row");
+    const seatNumber = button.dataset.admSeatNumber;
+    return {
+      seatId: button.dataset.admSeatId || null,
+      seatNumber,
+      rowName: seatNumber.replace(/[0-9]/g, ""),
+      seatType: row.querySelector("[data-adm-row-type]").value,
+      positionX: Number(seatNumber.replace(/[^0-9]/g, "")),
+      positionY: Number(row.querySelector(".adm-seat-row-label").textContent.charCodeAt(0) - 64),
+      isActive: button.getAttribute("aria-pressed") !== "true"
+    };
   });
 
-  venueSelect.addEventListener("change", () => {
-    loadVenue().catch(reason => notify(reason.message || "Không tải được sơ đồ ghế.", "error"));
+  venueSelect.addEventListener("change", async () => {
+    const seats = normalizePhysicalSeats(await getSeatMap(venueSelect.value));
+    grid.innerHTML = renderSeatGrid(seats);
+    updateCounts(seats);
   });
 
   grid.addEventListener("click", event => {
-    const seatButton = event.target.closest("[data-adm-seat]");
-    if (!seatButton) return;
-
-    const locked = seatButton.getAttribute("aria-pressed") !== "true";
-    seatButton.setAttribute("aria-pressed", String(locked));
-    seatButton.classList.toggle("adm-seat-lock", locked);
-
-    const seatMap = getCurrentMap();
-    const rowLabelValue = seatButton.dataset.admSeat.charAt(0);
-    const small = seatButton.querySelector("small");
-    small.textContent = locked ? "Khoá" : tierNames[seatMap.pricesByRow[rowLabelValue]];
-    updateCounts(seatMap);
+    const button = event.target.closest("[data-adm-seat-id]");
+    if (!button) return;
+    const inactive = button.getAttribute("aria-pressed") !== "true";
+    button.setAttribute("aria-pressed", String(inactive));
+    button.classList.toggle("adm-seat-lock", inactive);
+    const rowType = button.closest(".adm-seat-row").querySelector("[data-adm-row-type]").value;
+    button.querySelector("small").textContent = inactive ? "Khoá" : (tierNames[rowType] || rowType);
+    updateCounts(getRenderedSeats());
   });
 
   page.addEventListener("change", event => {
-    if (!event.target.matches("[data-adm-row-tier]")) return;
-    refreshGrid(getCurrentMap());
+    if (!event.target.matches("[data-adm-row-type]")) return;
+    event.target.closest(".adm-seat-row").querySelectorAll("[data-adm-seat-id]").forEach(button => {
+      button.classList.remove("adm-seat-vip", "adm-seat-standard");
+      button.classList.add(`adm-seat-${event.target.value.toLowerCase()}`);
+      if (button.getAttribute("aria-pressed") !== "true") button.querySelector("small").textContent = tierNames[event.target.value];
+    });
   });
 
-  page.querySelector("[data-adm-save-seatmap]").addEventListener("click", async event => {
-    const button = event.currentTarget;
-    button.disabled = true;
+  page.querySelector("[data-adm-add-seat]").addEventListener("click", () => notify("Thêm ghế: POST /api/v1/admin/venues/{id}/seats từng ghế một."));
+
+  page.querySelector("[data-adm-save-seats]").addEventListener("click", async () => {
     try {
-      await saveSeatMap(venueSelect.value, getCurrentMap());
-      notify("Đã lưu sơ đồ ghế.");
+      await saveSeatMap(venueSelect.value, { venueId: venueSelect.value, seats: getRenderedSeats() });
+      notify("Đã lưu thay đổi ghế vật lý.");
     } catch (reason) {
-      notify(reason.message || "Không thể lưu sơ đồ ghế.", "error");
-    } finally {
-      button.disabled = false;
+      notify(reason.message || "Không thể lưu ghế.", "error");
     }
   });
-
-  updateCounts(getCurrentMap());
 }

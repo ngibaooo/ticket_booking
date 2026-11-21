@@ -1,4 +1,4 @@
-import { deleteVenue, listVenues, saveVenue } from "../api.js";
+import { listVenues, saveVenue } from "../api.js";
 import { escapeHtml, notify, renderEmptyState, renderPageHeading } from "../ui.js";
 
 function venueStatus(status) {
@@ -13,16 +13,16 @@ function venueForm(venue = null) {
     </div>
     <div class="adm-modal-body">
       <div class="adm-field"><label for="adm-venue-name">Tên địa điểm</label>
-        <input id="adm-venue-name" name="name" maxlength="120" value="${escapeHtml(venue?.name || "")}" aria-describedby="adm-venue-error">
+        <input id="adm-venue-name" name="venueName" maxlength="150" value="${escapeHtml(venue?.venueName || "")}" aria-describedby="adm-venue-error">
       </div>
       <div class="adm-field"><label for="adm-venue-address">Địa chỉ</label>
-        <textarea id="adm-venue-address" name="address" rows="3" maxlength="240" aria-describedby="adm-venue-error">${escapeHtml(venue?.address || "")}</textarea>
+        <textarea id="adm-venue-address" name="address" rows="2" maxlength="240" aria-describedby="adm-venue-error">${escapeHtml(venue?.address || "")}</textarea>
       </div>
-      <div class="adm-field"><label for="adm-venue-status">Trạng thái</label>
-        <select id="adm-venue-status" name="status">
-          <option value="ACTIVE"${venue?.status !== "INACTIVE" ? " selected" : ""}>Đang hoạt động</option>
-          <option value="INACTIVE"${venue?.status === "INACTIVE" ? " selected" : ""}>Ngưng hoạt động</option>
-        </select>
+      <div class="adm-field"><label for="adm-venue-description">Mô tả</label>
+        <textarea id="adm-venue-description" name="description" rows="3" maxlength="500">${escapeHtml(venue?.description || "")}</textarea>
+      </div>
+      <div class="adm-field"><label for="adm-venue-capacity">Sức chứa</label>
+        <input id="adm-venue-capacity" name="capacity" type="number" min="1" step="1" value="${Number(venue?.capacity) || 1}">
       </div>
       <p class="adm-form-error" id="adm-venue-error" aria-live="polite"></p>
     </div>
@@ -59,11 +59,19 @@ function openVenueModal(venue = null) {
 
     const name = nameInput.value.trim();
     const address = addressInput.value.trim();
+    const description = modal.querySelector("#adm-venue-description").value.trim();
+    const capacity = Number(modal.querySelector("#adm-venue-capacity").value);
 
     if (!name) {
       nameInput.setAttribute("aria-invalid", "true");
       error.textContent = "Nhập tên địa điểm.";
       nameInput.focus();
+      return;
+    }
+
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      error.textContent = "Sức chứa phải là số nguyên lớn hơn 0.";
+      modal.querySelector("#adm-venue-capacity").focus();
       return;
     }
 
@@ -80,10 +88,12 @@ function openVenueModal(venue = null) {
     try {
       await saveVenue({
         id: venue?.id,
-        name,
+        venueName: name,
         address,
-        status: modal.querySelector("#adm-venue-status").value,
-        seatMap: venue?.seatMap || { rows: 0, seatsPerRow: 0, pricesByRow: {}, lockedSeats: [] }
+        description,
+        capacity,
+        status: venue?.status || "ACTIVE",
+        seats: venue?.seats || []
       });
       modal.remove();
       notify(venue ? "Đã cập nhật địa điểm." : "Đã thêm địa điểm.");
@@ -110,18 +120,17 @@ async function mountVenuePage(container) {
   container.innerHTML = `${renderPageHeading("Địa điểm", "Quản lý nơi tổ chức sự kiện", `<button class="adm-button adm-button-primary" type="button" data-adm-add-venue>Thêm địa điểm</button>`)}
     ${venues.length ? `<div class="adm-table-frame">
       <table class="adm-table">
-        <thead><tr><th>Tên địa điểm</th><th>Địa chỉ</th><th>Trạng thái</th><th>Số ghế</th><th><span class="adm-visually-hidden">Thao tác</span></th></tr></thead>
+        <thead><tr><th>Tên địa điểm</th><th>Địa chỉ</th><th>Mô tả</th><th>Sức chứa</th><th>Trạng thái</th><th><span class="adm-visually-hidden">Thao tác</span></th></tr></thead>
         <tbody>${venues.map(venue => {
-          const seatMap = venue.seatMap || {};
-          const seats = (Number(seatMap.rows) || 0) * (Number(seatMap.seatsPerRow) || 0);
           return `<tr>
-            <td><strong>${escapeHtml(venue.name)}</strong><span class="adm-table-code">${escapeHtml(venue.id)}</span></td>
+            <td><strong>${escapeHtml(venue.venueName)}</strong><span class="adm-table-code">${escapeHtml(venue.id)}</span></td>
             <td>${escapeHtml(venue.address)}</td>
+            <td>${escapeHtml(venue.description || "")}</td>
+            <td class="adm-mono">${Number(venue.capacity) || 0}</td>
             <td><span class="adm-status adm-status-${venue.status.toLowerCase()}">${venueStatus(venue.status)}</span></td>
-            <td class="adm-mono">${seats}</td>
             <td><div class="adm-row-actions">
               <button class="adm-button adm-button-quiet" type="button" data-adm-edit-venue="${escapeHtml(venue.id)}">Sửa</button>
-              <button class="adm-button adm-button-danger" type="button" data-adm-delete-venue="${escapeHtml(venue.id)}" data-adm-venue-name="${escapeHtml(venue.name)}">Xóa</button>
+              <a class="adm-button" href="#/seatmap">Sơ đồ ghế</a>
             </div></td>
           </tr>`;
         }).join("")}</tbody>
@@ -136,19 +145,6 @@ async function mountVenuePage(container) {
     });
   });
 
-  container.querySelectorAll("[data-adm-delete-venue]").forEach(button => {
-    button.addEventListener("click", async () => {
-      const name = button.dataset.admVenueName;
-      if (!window.confirm(`Xóa địa điểm “${name}”? Thao tác này không thể hoàn tác.`)) return;
-      try {
-        await deleteVenue(button.dataset.admDeleteVenue);
-        notify("Đã xóa địa điểm.");
-        mountVenuePage(container);
-      } catch (reason) {
-        notify(reason.message || "Không thể xóa địa điểm.", "error");
-      }
-    });
-  });
 }
 
 export async function renderVenues() {
