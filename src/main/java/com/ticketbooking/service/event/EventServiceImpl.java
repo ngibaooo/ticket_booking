@@ -23,6 +23,7 @@ import com.ticketbooking.repository.EventRepository;
 import com.ticketbooking.repository.EventSeatRepository;
 import com.ticketbooking.repository.SeatRepository;
 import com.ticketbooking.repository.VenueRepository;
+import com.ticketbooking.service.booking.RedisHoldService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -45,19 +46,22 @@ public class EventServiceImpl implements EventService {
     private final VenueRepository venueRepository;
     private final SeatRepository seatRepository;
     private final EventSeatRepository eventSeatRepository;
+    private final RedisHoldService redisHoldService;
 
     public EventServiceImpl(
             EventRepository eventRepository,
             EventMapper eventMapper,
             VenueRepository venueRepository,
             SeatRepository seatRepository,
-            EventSeatRepository eventSeatRepository
+            EventSeatRepository eventSeatRepository,
+            RedisHoldService redisHoldService
     ) {
         this.eventRepository = eventRepository;
         this.eventMapper = eventMapper;
         this.venueRepository = venueRepository;
         this.seatRepository = seatRepository;
         this.eventSeatRepository = eventSeatRepository;
+        this.redisHoldService = redisHoldService;
     }
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "startTime",
@@ -230,6 +234,7 @@ public class EventServiceImpl implements EventService {
         // 3. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
     }
+
     @Override
     public EventSeatsResponse getPublicEventSeats(Long eventId) {
 
@@ -240,7 +245,7 @@ public class EventServiceImpl implements EventService {
             );
         }
 
-        // 2. Tìm sự kiện công khai, loại trừ DRAFT và CANCELLED
+        // 2. Tìm sự kiện công khai
         Event event = eventRepository.findByIdAndStatusNotIn(
                 eventId,
                 List.of(EventStatus.DRAFT, EventStatus.CANCELLED)
@@ -248,15 +253,30 @@ public class EventServiceImpl implements EventService {
                 "Event not found with ID: " + eventId
         ));
 
-        // 3. Lấy danh sách ghế của sự kiện kèm thông tin Seat
+        // 3. Lấy danh sách ghế kèm thông tin Seat
         List<EventSeat> eventSeats =
                 eventSeatRepository.findByEventIdWithSeat(eventId);
 
-        // 4. Chuyển EventSeat thành EventSeatResponse
+        // 4. Lấy danh sách EventSeat ID
+        List<Long> eventSeatIds = eventSeats.stream()
+                .map(EventSeat::getId)
+                .toList();
+
+        // 5. Lấy danh sách ghế đang được giữ trong Redis
+        Set<Long> heldSeatIds = redisHoldService.getHeldSeatIds(
+                eventId,
+                eventSeatIds
+        );
+
+        // 6. Chuyển EventSeat thành EventSeatResponse
         List<EventSeatResponse> seatResponses = eventSeats.stream()
                 .map(eventSeat -> {
 
                     Seat seat = eventSeat.getSeat();
+
+                    boolean isHeld = heldSeatIds.contains(
+                            eventSeat.getId()
+                    );
 
                     return new EventSeatResponse(
                             eventSeat.getId(),
@@ -269,18 +289,19 @@ public class EventServiceImpl implements EventService {
                             eventSeat.getPrice(),
                             eventSeat.getStatus(),
                             seat.getActive(),
-                            false
+                            isHeld
                     );
                 })
                 .toList();
 
-        // 5. Trả về sơ đồ ghế của sự kiện
+        // 7. Trả về sơ đồ ghế
         return new EventSeatsResponse(
                 event.getId(),
                 event.getEventName(),
                 seatResponses
         );
     }
+
 
     @Override
     public Page<EventResponse> getAdminEvents(
