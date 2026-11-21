@@ -197,22 +197,40 @@ async function apiRequest(path, options = {}) {
 // POST /api/v1/auth/login
 // Mock: data = {accessToken, tokenType, expiresIn, user:{...role:"ADMIN"}}
 export async function signIn(email, password) {
+  let response;
+
   if (USE_MOCK) {
     if (email !== "admin@example.test" || password !== "demo1234") {
       throw new Error("Thông tin đăng nhập thử chưa đúng.");
     }
-    return mockResponse({
+    response = mockResponse({
       accessToken: "mock-admin-token",
       tokenType: "Bearer",
       expiresIn: 86400,
       user: { id: 1, fullName: "Quản trị viên", email, role: "ADMIN", status: "ACTIVE" }
     }, "Login successful");
+  } else {
+    response = await apiRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
   }
 
-  return apiRequest("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password })
-  });
+  const data = unwrapResponse(response);
+  const user = data?.user;
+  if (!data?.accessToken) throw new Error("Máy chủ không trả accessToken.");
+  if (user?.role !== "ADMIN") throw new Error("Tài khoản này không có quyền quản trị.");
+
+  const session = {
+    name: user.fullName || "Quản trị viên",
+    email: user.email,
+    role: user.role,
+    accessToken: data.accessToken,
+    tokenType: data.tokenType || "Bearer",
+    expiresIn: data.expiresIn
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
 }
 
 function normalizeBackendEvent(event) {
@@ -470,7 +488,7 @@ export async function getDashboardData() {
       .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0)
   }));
 
-  return mockResponse({
+  return unwrapResponse(mockResponse({
     revenue: confirmed.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0),
     ticketsSold: confirmed.reduce((sum, booking) => sum + (booking.seatNumbers?.length || 0), 0),
     eventsOnSale: data.events.filter(event => event.status === "OPEN").length,
@@ -478,27 +496,7 @@ export async function getDashboardData() {
     events: copy(data.events),
     revenueByEvent,
     recentBookings: copy(data.bookings).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
-  });
-}
-
-// POST /api/v1/auth/login
-export async function signIn(email, password) {
-  const response = await apiRequest("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password })
-  });
-  const user = response?.user;
-  if (!user || user.role !== "ADMIN") {
-    throw new Error("Tài khoản này không có quyền quản trị.");
-  }
-  const session = {
-    name: user.fullName || "Quản trị viên",
-    email: user.email,
-    role: user.role,
-    accessToken: response.accessToken
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
+  }));
 }
 
 export function getSession() {

@@ -1,4 +1,4 @@
-import { signIn } from "../api.js";
+import { signIn, USE_MOCK } from "../api.js";
 import { notify, escapeHtml } from "../ui.js";
 
 export function renderLogin() {
@@ -8,7 +8,7 @@ export function renderLogin() {
         <span class="adm-brand-mark" aria-hidden="true">VN</span><span>Vé Nhà</span>
       </a>
       <h1 id="adm-login-title">Đăng nhập quản trị</h1>
-      <p>Nhập tài khoản quản trị đã được cấp để tiếp tục.</p>
+      <p>Nhập tài khoản quản trị để tiếp tục.</p>
       <form class="adm-login-fields" id="adm-login-form" novalidate>
         <div class="adm-field">
           <label for="adm-email">Email</label>
@@ -24,7 +24,8 @@ export function renderLogin() {
         <p class="adm-login-error" id="adm-login-error" aria-live="polite"></p>
         <button class="adm-button adm-button-primary" type="submit" data-adm-login-submit>Đăng nhập</button>
       </form>
-      <p class="adm-login-note">Phiên đăng nhập được xác thực bằng tài khoản Admin của hệ thống.</p>
+      <p class="adm-login-note">Phiên đăng nhập dùng tài khoản Admin theo hợp đồng API.</p>
+      ${USE_MOCK ? `<p class="adm-login-note">Tài khoản mẫu: <span class="adm-mono">admin@example.test</span> / <span class="adm-mono">demo1234</span>. Chỉ dùng khi USE_MOCK=true.</p>` : ""}
     </section>
   </main>`;
 }
