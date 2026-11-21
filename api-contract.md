@@ -138,16 +138,17 @@ Giá trị hợp lệ: `ACTIVE`, `INACTIVE`, `LOCKED`.
 
 ## 4. Event API
 
-| Method | Endpoint | Quyền | Chức năng |
-|---|---|---|---|
-| GET | `/api/v1/events` | Public | Lấy danh sách sự kiện |
-| GET | `/api/v1/events/{id}` | Public | Xem chi tiết sự kiện |
-| GET | `/api/v1/events/{eventId}/seats` | Public | Xem sơ đồ và trạng thái ghế |
-| GET | `/api/v1/events/{eventId}/seats/{eventSeatId}` | Public | Xem thông tin ghế thuộc sự kiện |
-| POST | `/api/v1/admin/events` | ADMIN | Tạo sự kiện |
-| PUT | `/api/v1/admin/events/{id}` | ADMIN | Cập nhật sự kiện |
-| PUT | `/api/v1/admin/events/{id}/status` | ADMIN | Cập nhật trạng thái sự kiện |
-| PUT | `/api/v1/admin/events/{eventId}/seats/prices` | ADMIN | Thiết lập giá ghế của sự kiện |
+| Method | Endpoint                                       | Quyền  | Chức năng                                |
+|---|------------------------------------------------|--------|------------------------------------------|
+| GET | `/api/v1/events`                               | Public | Lấy danh sách sự kiện (Customer & Guest) |
+| GET | `/api/v1/events/{id}`                          | Public | Xem chi tiết sự kiện (Customer & Guest)                    |
+| GET | `/api/v1/events/{eventId}/seats`               | Public | Xem sơ đồ và trạng thái ghế              |
+| GET | `/api/v1/admin/events`                         | ADMIN  | Admin lấy danh sách sự kiện              |
+| GET | `/api/v1/admin/events/{id}`                    | ADMIN  | Admin xem chi tiết sự kiện               |
+| POST | `/api/v1/admin/events`                         | ADMIN  | Tạo sự kiện                              |
+| PUT | `/api/v1/admin/events/{id}`                    | ADMIN  | Cập nhật sự kiện                         |
+| PUT | `/api/v1/admin/events/{id}/status`             | ADMIN  | Cập nhật trạng thái sự kiện              |
+| PUT | `/api/v1/admin/events/{eventId}/seats/prices`  | ADMIN  | Thiết lập giá ghế của sự kiện            |
 
 ### Create Event – POST `/api/v1/admin/events`
 

@@ -4,6 +4,8 @@ package com.ticketbooking.repository;
 import com.ticketbooking.entity.EventSeat;
 import com.ticketbooking.enums.EventSeatStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -36,5 +38,30 @@ public interface EventSeatRepository extends JpaRepository<EventSeat, Long> {
     List<EventSeat> findByEventIdAndIdIn(
             Long eventId,
             Collection<Long> eventSeatIds
+    );
+    // Lấy danh sách ghế của sự kiện kèm thông tin Seat
+    @Query("""
+        SELECT es
+        FROM EventSeat es
+        JOIN FETCH es.seat s
+        WHERE es.event.id = :eventId
+        ORDER BY s.positionY ASC, s.positionX ASC, s.seatNumber ASC
+        """)
+    List<EventSeat> findByEventIdWithSeat(
+            @Param("eventId") Long eventId
+    );
+
+    // Lấy danh sách EventSeat chưa được đặt của một sự kiện
+    // Đồng thời fetch Seat để lấy SeatType
+    @Query("""
+        SELECT es
+        FROM EventSeat es
+        JOIN FETCH es.seat s
+        WHERE es.event.id = :eventId
+        AND es.status = :status
+        """)
+    List<EventSeat> findByEventIdAndStatusWithSeat(
+            @Param("eventId") Long eventId,
+            @Param("status") EventSeatStatus status
     );
 }

@@ -14,6 +14,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 public interface EventMapper {
 
     @Mapping(target = "venueId", source = "venue.id")
+    @Mapping(target = "venueName", source = "venue.venueName")
     EventResponse toResponse(Event event);
 
     @BeanMapping(

@@ -1,16 +1,15 @@
 
 package com.ticketbooking.dto.event;
 
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
 
 public record CreateEventRequest(
 
         @NotNull(message = "Venue ID is required")
+        @Positive(message = "Venue ID must be greater than 0")
         Long venueId,
 
         @NotBlank(message = "Event name is required")
@@ -33,7 +32,11 @@ public record CreateEventRequest(
         LocalDateTime saleEndTime,
 
         @Size(max = 500, message = "Banner URL must not exceed 500 characters")
-        String bannerUrl
+        String bannerUrl,
+
+        @NotNull(message = "Seat prices are required")
+        @Valid
+                SeatPricesRequest seatPrices
 
 ) {
 }

@@ -58,6 +58,28 @@ public class Event {
     protected Event() {
     }
 
+    public Event(
+            Venue venue,
+            String eventName,
+            String description,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            LocalDateTime saleStartTime,
+            LocalDateTime saleEndTime,
+            String bannerUrl,
+            EventStatus status
+    ) {
+        this.venue = venue;
+        this.eventName = eventName;
+        this.description = description;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.saleStartTime = saleStartTime;
+        this.saleEndTime = saleEndTime;
+        this.bannerUrl = bannerUrl;
+        this.status = status;
+    }
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

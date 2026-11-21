@@ -3,9 +3,15 @@ package com.ticketbooking.repository;
 
 import com.ticketbooking.entity.Event;
 import com.ticketbooking.enums.EventStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
@@ -19,5 +25,42 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findByStatusAndVenueId(
             EventStatus status,
             Long venueId
+    );
+    @Query("""
+    SELECT e FROM Event e
+    WHERE
+        LOWER(e.eventName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+    AND (:venueId IS NULL OR e.venue.id = :venueId)
+    AND (
+        e.status NOT IN (
+            com.ticketbooking.enums.EventStatus.DRAFT,
+            com.ticketbooking.enums.EventStatus.CANCELLED
+        )
+    )
+    AND (:status IS NULL OR e.status = :status)
+    """)
+    Page<Event> searchPublicEvents(
+            @Param("keyword") String keyword,
+            @Param("status") EventStatus status,
+            @Param("venueId") Long venueId,
+            Pageable pageable
+    );
+    // Lấy sự kiện theo ID, loại trừ DRAFT và CANCELLED
+    Optional<Event> findByIdAndStatusNotIn(
+            Long id,
+            Collection<EventStatus> statuses
+    );
+    @Query("""
+    SELECT e FROM Event e
+    WHERE
+        LOWER(e.eventName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+    AND (:venueId IS NULL OR e.venue.id = :venueId)
+    AND (:status IS NULL OR e.status = :status)
+    """)
+    Page<Event> searchAdminEvents(
+            @Param("keyword") String keyword,
+            @Param("status") EventStatus status,
+            @Param("venueId") Long venueId,
+            Pageable pageable
     );
 }

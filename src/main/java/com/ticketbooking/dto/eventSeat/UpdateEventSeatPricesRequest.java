@@ -1,17 +1,21 @@
-
 package com.ticketbooking.dto.eventSeat;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 
-import java.util.List;
+import java.math.BigDecimal;
 
 public record UpdateEventSeatPricesRequest(
 
-        @NotEmpty(message = "Seat price list must not be empty")
-        @Size(max = 500, message = "Cannot update more than 500 seats at once")
-        List<@Valid UpdateEventSeatPriceRequest> seatPrices
+        @NotNull(message = "Standard price is required")
+        @DecimalMin(value = "0.0", inclusive = false,
+                message = "Standard price must be greater than 0")
+        BigDecimal standardPrice,
+
+        @NotNull(message = "VIP price is required")
+        @DecimalMin(value = "0.0", inclusive = false,
+                message = "VIP price must be greater than 0")
+        BigDecimal vipPrice
 
 ) {
 }

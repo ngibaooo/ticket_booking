@@ -10,10 +10,6 @@ import java.util.List;
 
 public record HoldSeatsRequest(
 
-        @NotNull(message = "Event ID is required")
-        @Positive(message = "Event ID must be positive")
-        Long eventId,
-
         @NotEmpty(message = "Seat list must not be empty")
         @Size(max = 10, message = "Cannot hold more than 10 seats at once")
         List<
