@@ -36,6 +36,23 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+.adm-skip-link {
+  position: fixed;
+  top: var(--adm-space-2);
+  left: var(--adm-space-2);
+  z-index: 100;
+  transform: translateY(-160%);
+  border: 2px solid var(--adm-focus);
+  background: var(--adm-surface);
+  color: var(--adm-ink);
+  padding: var(--adm-space-2) var(--adm-space-3);
+  text-decoration: none;
+}
+
+.adm-skip-link:focus {
+  transform: translateY(0);
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -1205,6 +1222,57 @@ a {
 
   .adm-page-heading h1 {
     font-size: 21px;
+  }
+}
+
+@media (max-width: 760px) {
+  .adm-button,
+  .adm-password-toggle {
+    min-height: 44px;
+  }
+
+  .adm-nav-link {
+    min-height: 44px;
+  }
+
+  .adm-modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .adm-modal {
+    width: 100%;
+    max-height: 92vh;
+  }
+
+  .adm-modal-heading,
+  .adm-modal-footer,
+  .adm-modal-body {
+    padding-inline: var(--adm-space-4);
+  }
+
+  .adm-modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: var(--adm-surface);
+  }
+
+  .adm-table-frame,
+  .adm-seatmap-canvas {
+    scrollbar-color: var(--adm-accent) var(--adm-canvas);
+  }
+}
+
+@media (forced-colors: active) {
+  .adm-seat,
+  .adm-seat-key,
+  .adm-status,
+  .adm-brand-mark {
+    border: 1px solid CanvasText;
+  }
+
+  .adm-seat-lock {
+    outline: 2px solid CanvasText;
   }
 }
 

@@ -2,7 +2,7 @@ import { signInDemo } from "../api.js";
 import { notify, escapeHtml } from "../ui.js";
 
 export function renderLogin() {
-  return `<main class="adm-login-page">
+  return `<main class="adm-login-page" id="adm-main-content">
     <section class="adm-login-panel" aria-labelledby="adm-login-title">
       <a class="adm-brand" href="#/login" aria-label="Vé Nhà">
         <span class="adm-brand-mark" aria-hidden="true">VN</span><span>Vé Nhà</span>

@@ -42,7 +42,7 @@ function shell(content, route, session) {
         <a class="adm-nav-link" href="#/seatmap"><span class="adm-nav-key" aria-hidden="true">G</span><span>Sơ đồ ghế</span></a>
       </div>
     </aside>
-    <main class="adm-main">
+    <main class="adm-main" id="adm-main-content">
       <header class="adm-topbar">
         <span class="adm-topbar-title">${escapeHtml(pages[route]?.title || "Quản trị")}</span>
         <div class="adm-user-area"><span class="adm-user-name">${escapeHtml(session.name || session.email)}</span>
