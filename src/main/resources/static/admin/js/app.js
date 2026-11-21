@@ -2,7 +2,7 @@ import { getSession, signOut } from "./api.js";
 import { renderLogin, mountLogin } from "./pages/login.js";
 import { renderDashboard } from "./pages/dashboard.js";
 import { renderVenues } from "./pages/venues.js";
-import { renderSeatMap } from "./pages/seatmap.js";
+import { initSeatMap, renderSeatMap } from "./pages/seatmap.js";
 import { renderEvents } from "./pages/events.js";
 import { renderBookings } from "./pages/bookings.js";
 import { escapeHtml } from "./ui.js";
@@ -81,6 +81,8 @@ async function render() {
     signOut();
     window.location.replace("#/login");
   });
+
+  if (route === "seatmap") initSeatMap(app);
 }
 
 window.addEventListener("hashchange", render);

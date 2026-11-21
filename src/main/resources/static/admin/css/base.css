@@ -737,6 +737,224 @@ a {
   font-size: 12px;
 }
 
+.adm-seatmap-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) 120px 150px auto;
+  align-items: end;
+  gap: var(--adm-space-3);
+  border: 1px solid var(--adm-line);
+  background: var(--adm-surface);
+  margin-bottom: var(--adm-space-5);
+  padding: var(--adm-space-4);
+}
+
+.adm-seatmap-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: var(--adm-space-5);
+}
+
+.adm-seatmap-canvas {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--adm-line);
+  background: var(--adm-surface);
+  padding: var(--adm-space-6);
+}
+
+.adm-stage {
+  max-width: 560px;
+  border-bottom: 3px solid var(--adm-accent);
+  border-radius: 0 0 50% 50%;
+  margin: 0 auto var(--adm-space-8);
+  padding: var(--adm-space-3);
+  color: var(--adm-muted);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.adm-seat-grid {
+  width: max-content;
+  min-width: 100%;
+  display: grid;
+  justify-content: center;
+  gap: var(--adm-space-2);
+}
+
+.adm-seat-row {
+  display: grid;
+  grid-template-columns: 28px minmax(520px, 1fr) 130px;
+  align-items: center;
+  gap: var(--adm-space-3);
+}
+
+.adm-seat-row-label {
+  font-family: var(--adm-font-mono);
+  text-align: center;
+}
+
+.adm-seat-line {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.adm-seat {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 42px;
+  place-content: center;
+  border: 1px solid var(--adm-line);
+  border-radius: 7px 7px 3px 3px;
+  background: var(--adm-surface);
+  color: var(--adm-ink);
+  cursor: pointer;
+  padding: 2px;
+  text-align: center;
+}
+
+.adm-seat span,
+.adm-seat small {
+  display: block;
+  line-height: 1.15;
+}
+
+.adm-seat span {
+  font-family: var(--adm-font-mono);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.adm-seat small {
+  max-width: 34px;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--adm-muted);
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-seat-vip {
+  border-top: 3px solid var(--adm-accent);
+}
+
+.adm-seat-standard {
+  border-top: 3px solid var(--adm-muted);
+}
+
+.adm-seat-economy {
+  border-top: 3px solid var(--adm-warning);
+}
+
+.adm-seat-lock {
+  border: 2px solid var(--adm-danger);
+  background: var(--adm-danger-soft);
+}
+
+.adm-seat-lock small {
+  color: var(--adm-danger);
+  font-weight: 800;
+}
+
+.adm-row-tier {
+  display: grid;
+  gap: 3px;
+  color: var(--adm-muted);
+  font-size: 9px;
+}
+
+.adm-row-tier select {
+  height: 32px;
+  border: 1px solid var(--adm-line);
+  border-radius: var(--adm-radius-small);
+  background: var(--adm-surface);
+}
+
+.adm-seat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--adm-space-4);
+  margin-top: var(--adm-space-8);
+  color: var(--adm-muted);
+  font-size: 11px;
+}
+
+.adm-seat-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.adm-seat-key {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--adm-line);
+  border-radius: 3px 3px 1px 1px;
+}
+
+.adm-seat-key-vip { border-top: 3px solid var(--adm-accent); }
+.adm-seat-key-standard { border-top: 3px solid var(--adm-muted); }
+.adm-seat-key-economy { border-top: 3px solid var(--adm-warning); }
+.adm-seat-key-lock { border: 2px solid var(--adm-danger); background: var(--adm-danger-soft); }
+
+.adm-seatmap-summary {
+  display: grid;
+  align-content: start;
+  border: 1px solid var(--adm-line);
+  background: var(--adm-surface);
+}
+
+.adm-seatmap-summary div {
+  display: grid;
+  border-bottom: 1px solid var(--adm-line);
+  padding: var(--adm-space-4);
+}
+
+.adm-seatmap-summary div:last-child {
+  border-bottom: 0;
+}
+
+.adm-seatmap-summary span {
+  color: var(--adm-muted);
+  font-size: 11px;
+}
+
+.adm-seatmap-summary strong {
+  margin-top: 4px;
+  font-size: 21px;
+}
+
+@media (max-width: 980px) {
+  .adm-seatmap-toolbar {
+    grid-template-columns: minmax(180px, 1fr) 110px 130px;
+  }
+
+  .adm-seatmap-toolbar [data-adm-rebuild-seatmap] {
+    grid-column: 3;
+  }
+
+  .adm-seatmap-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .adm-seatmap-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .adm-seatmap-summary div {
+    border-right: 1px solid var(--adm-line);
+    border-bottom: 0;
+  }
+
+  .adm-seatmap-summary div:last-child {
+    border-right: 0;
+  }
+}
+
 .adm-visually-hidden {
   position: absolute;
   width: 1px;
