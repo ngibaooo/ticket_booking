@@ -244,4 +244,79 @@ class RedisHoldServiceTest {
         assertTrue(result);
         assertNull(redisTemplate.opsForValue().get(key(1L)));
     }
+    // Verify Hold Seats Test
+
+    @Test
+    void shouldVerifySeatsHeldByCustomerSuccessfully() {
+        // Customer 100 giữ ghế 1 và 2
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        boolean result = redisHoldService.verifySeatsHeldByCustomer(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        assertTrue(result);
+    }
+
+    @Test
+    void shouldReturnFalseWhenOneSeatIsNotHeld() {
+        // Customer 100 chỉ giữ ghế 1
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        // Kiểm tra cả ghế 1 và ghế 2
+        boolean result = redisHoldService.verifySeatsHeldByCustomer(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        assertFalse(result);
+    }
+
+    @Test
+    void shouldReturnFalseWhenSeatIsHeldByAnotherCustomer() {
+        // Customer 100 giữ ghế 1
+        // Customer 200 giữ ghế 2
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(2L),
+                200L
+        );
+
+        // Customer 100 kiểm tra cả hai ghế
+        boolean result = redisHoldService.verifySeatsHeldByCustomer(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        assertFalse(result);
+    }
+
+    @Test
+    void shouldReturnFalseWhenSeatListIsEmpty() {
+        boolean result = redisHoldService.verifySeatsHeldByCustomer(
+                EVENT_ID,
+                List.of(),
+                100L
+        );
+
+        assertFalse(result);
+    }
 }
