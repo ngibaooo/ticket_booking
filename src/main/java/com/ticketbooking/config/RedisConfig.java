@@ -29,4 +29,12 @@ public class RedisConfig {
 
         return script;
     }
+
+    @Bean
+    public DefaultRedisScript<Long> releaseSeatsScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("redis/release-seats.lua"));
+        script.setResultType(Long.class);
+        return script;
+    }
 }

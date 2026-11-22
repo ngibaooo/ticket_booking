@@ -1,6 +1,7 @@
 
 package com.ticketbooking.service.booking;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -17,13 +18,16 @@ public class RedisHoldService {
 
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> holdSeatsScript;
+    private final DefaultRedisScript<Long> releaseSeatsScript;
 
     public RedisHoldService(
             StringRedisTemplate redisTemplate,
-            DefaultRedisScript<Long> holdSeatsScript
+            @Qualifier("holdSeatsScript") DefaultRedisScript<Long> holdSeatsScript,
+            @Qualifier("releaseSeatsScript") DefaultRedisScript<Long> releaseSeatsScript
     ) {
         this.redisTemplate = redisTemplate;
         this.holdSeatsScript = holdSeatsScript;
+        this.releaseSeatsScript = releaseSeatsScript;
     }
 
     public void testConnection() {
@@ -97,5 +101,23 @@ public class RedisHoldService {
 
         return heldSeatIds;
     }
+    public boolean releaseSeats(
+            Long eventId,
+            List<Long> eventSeatIds,
+            Long customerId
+    ) {
+        List<String> keys = eventSeatIds.stream()
+                .map(eventSeatId ->
+                        "event:" + eventId + ":seat:" + eventSeatId + ":hold"
+                )
+                .toList();
 
+        Long result = redisTemplate.execute(
+                releaseSeatsScript,
+                keys,
+                customerId.toString()
+        );
+
+        return Long.valueOf(1).equals(result);
+    }
 }

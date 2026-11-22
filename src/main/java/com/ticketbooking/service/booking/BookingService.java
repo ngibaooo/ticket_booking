@@ -9,4 +9,9 @@ public interface BookingService {
             List<Long> eventSeatIds,
             Long customerId
     );
+    void releaseSeats(
+            Long eventId,
+            List<Long> eventSeatIds,
+            Long customerId
+    );
 }

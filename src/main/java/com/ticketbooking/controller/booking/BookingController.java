@@ -2,6 +2,7 @@
 package com.ticketbooking.controller.booking;
 
 import com.ticketbooking.dto.booking.HoldSeatsRequest;
+import com.ticketbooking.dto.booking.ReleaseSeatsRequest;
 import com.ticketbooking.security.CustomUserDetails;
 import com.ticketbooking.service.booking.BookingService;
 import jakarta.validation.Valid;
@@ -40,6 +41,23 @@ public class BookingController {
 
     ) {
         bookingService.holdSeats(
+                eventId,
+                request.eventSeatIds(),
+                userDetails.getId()
+        );
+    }
+    @DeleteMapping("/{eventId}/hold-seats")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void releaseSeats(
+            @PathVariable
+            @Positive(message = "Event ID must be greater than 0")
+            Long eventId,
+
+            @Valid @RequestBody ReleaseSeatsRequest request,
+
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        bookingService.releaseSeats(
                 eventId,
                 request.eventSeatIds(),
                 userDetails.getId()

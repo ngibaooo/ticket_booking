@@ -106,4 +106,45 @@ public class BookingServiceImpl implements BookingService {
             );
         }
     }
+    @Override
+    public void releaseSeats(
+            Long eventId,
+            List<Long> eventSeatIds,
+            Long customerId
+    ) {
+        // Bước 1: Kiểm tra danh sách ghế
+        if (eventSeatIds == null || eventSeatIds.isEmpty()) {
+            throw new BadRequestException("Seat list must not be empty");
+        }
+
+        if (new HashSet<>(eventSeatIds).size() != eventSeatIds.size()) {
+            throw new BadRequestException("Duplicate seat IDs are not allowed");
+        }
+
+        // Bước 2: Kiểm tra event tồn tại
+        eventRepository.findById(eventId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Event not found"));
+
+        // Bước 3: Kiểm tra các ghế thuộc event
+        List<EventSeat> eventSeats =
+                eventSeatRepository.findByEventIdAndIdIn(eventId, eventSeatIds);
+
+        if (eventSeats.size() != eventSeatIds.size()) {
+            throw new BadRequestException(
+                    "One or more seats do not belong to this event");
+        }
+
+        // Bước 4: Giải phóng ghế trong Redis
+        boolean released = redisHoldService.releaseSeats(
+                eventId,
+                eventSeatIds,
+                customerId
+        );
+
+        if (!released) {
+            throw new ConflictException(
+                    "One or more seats are held by another customer");
+        }
+    }
 }
