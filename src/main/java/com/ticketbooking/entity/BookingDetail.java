@@ -38,7 +38,15 @@ public class BookingDetail {
 
     protected BookingDetail() {
     }
-
+    public BookingDetail(
+            Booking booking,
+            EventSeat eventSeat,
+            BigDecimal price
+    ) {
+        this.booking = booking;
+        this.eventSeat = eventSeat;
+        this.price = price;
+    }
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

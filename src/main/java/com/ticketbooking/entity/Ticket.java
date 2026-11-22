@@ -49,6 +49,15 @@ public class Ticket {
 
     protected Ticket() {
     }
+    public Ticket(
+            BookingDetail bookingDetail,
+            String ticketCode,
+            TicketStatus status
+    ) {
+        this.bookingDetail = bookingDetail;
+        this.ticketCode = ticketCode;
+        this.status = status;
+    }
 
     @PrePersist
     protected void onCreate() {

@@ -51,6 +51,19 @@ public class Booking {
 //    Dùng protected hạn chế việc các class khác package có thể tạo đối tượng Booking rỗng
     protected Booking() {
     }
+    public Booking(
+            String bookingCode,
+            User user,
+            Event event,
+            BigDecimal totalAmount,
+            BookingStatus status
+    ) {
+        this.bookingCode = bookingCode;
+        this.user = user;
+        this.event = event;
+        this.totalAmount = totalAmount;
+        this.status = status;
+    }
 
     @PrePersist
     protected void onCreate() {
