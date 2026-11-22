@@ -360,4 +360,139 @@ class BookingServiceImplTest {
 
         verify(redisHoldService).holdSeats(eventId, eventSeatIds, customerId);
     }
+    @Test
+    void shouldReleaseSeatsSuccessfully() {
+        // Arrange
+        Long eventId = 1L;
+        Long customerId = 100L;
+        List<Long> eventSeatIds = List.of(10L, 11L);
+
+        EventSeat seat1 = mock(EventSeat.class);
+        EventSeat seat2 = mock(EventSeat.class);
+
+        when(eventRepository.findById(eventId))
+                .thenReturn(Optional.of(event));
+
+        when(eventSeatRepository.findByEventIdAndIdIn(
+                eventId, eventSeatIds
+        )).thenReturn(List.of(seat1, seat2));
+
+        when(redisHoldService.releaseSeats(
+                eventId, eventSeatIds, customerId
+        )).thenReturn(true);
+
+        // Act & Assert
+        assertDoesNotThrow(() ->
+                bookingService.releaseSeats(eventId, eventSeatIds, customerId)
+        );
+
+        verify(eventRepository).findById(eventId);
+
+        verify(eventSeatRepository).findByEventIdAndIdIn(
+                eventId, eventSeatIds
+        );
+
+        verify(redisHoldService).releaseSeats(
+                eventId, eventSeatIds, customerId
+        );
+    }
+    @Test
+    void shouldRejectEmptySeatListWhenReleasing() {
+        assertThrows(
+                BadRequestException.class,
+                () -> bookingService.releaseSeats(1L, List.of(), 100L)
+        );
+
+        verifyNoInteractions(
+                eventRepository,
+                eventSeatRepository,
+                redisHoldService
+        );
+    }
+    @Test
+    void shouldRejectDuplicateSeatIdsWhenReleasing() {
+        List<Long> eventSeatIds = List.of(10L, 10L);
+
+        assertThrows(
+                BadRequestException.class,
+                () -> bookingService.releaseSeats(1L, eventSeatIds, 100L)
+        );
+
+        verifyNoInteractions(
+                eventRepository,
+                eventSeatRepository,
+                redisHoldService
+        );
+    }
+    @Test
+    void shouldThrowWhenEventNotFoundWhenReleasing() {
+        Long eventId = 1L;
+        List<Long> eventSeatIds = List.of(10L);
+
+        when(eventRepository.findById(eventId))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> bookingService.releaseSeats(eventId, eventSeatIds, 100L)
+        );
+
+        verify(eventRepository).findById(eventId);
+
+        verifyNoInteractions(
+                eventSeatRepository,
+                redisHoldService
+        );
+    }
+    @Test
+    void shouldRejectSeatsNotBelongingToEventWhenReleasing() {
+        Long eventId = 1L;
+        List<Long> eventSeatIds = List.of(10L, 11L);
+
+        EventSeat seat1 = mock(EventSeat.class);
+
+        when(eventRepository.findById(eventId))
+                .thenReturn(Optional.of(event));
+
+        when(eventSeatRepository.findByEventIdAndIdIn(
+                eventId, eventSeatIds
+        )).thenReturn(List.of(seat1));
+
+        assertThrows(
+                BadRequestException.class,
+                () -> bookingService.releaseSeats(eventId, eventSeatIds, 100L)
+        );
+
+        verifyNoInteractions(redisHoldService);
+    }
+    @Test
+    void shouldRejectWhenSeatsAreHeldByAnotherCustomer() {
+        Long eventId = 1L;
+        Long customerId = 100L;
+        List<Long> eventSeatIds = List.of(10L, 11L);
+
+        EventSeat seat1 = mock(EventSeat.class);
+        EventSeat seat2 = mock(EventSeat.class);
+
+        when(eventRepository.findById(eventId))
+                .thenReturn(Optional.of(event));
+
+        when(eventSeatRepository.findByEventIdAndIdIn(
+                eventId, eventSeatIds
+        )).thenReturn(List.of(seat1, seat2));
+
+        when(redisHoldService.releaseSeats(
+                eventId, eventSeatIds, customerId
+        )).thenReturn(false);
+
+        assertThrows(
+                ConflictException.class,
+                () -> bookingService.releaseSeats(eventId, eventSeatIds, customerId)
+        );
+
+        verify(redisHoldService).releaseSeats(
+                eventId, eventSeatIds, customerId
+        );
+    }
+
 }
