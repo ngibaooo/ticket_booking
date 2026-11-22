@@ -1,15 +1,25 @@
-
 package com.ticketbooking.mapper;
 
 import com.ticketbooking.dto.booking.BookingResponse;
 import com.ticketbooking.entity.Booking;
+import com.ticketbooking.entity.Ticket;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
+import java.util.List;
+
+@Mapper(
+        componentModel = "spring",
+        uses = TicketMapper.class
+)
 public interface BookingMapper {
 
-    @Mapping(target = "userId", source = "user.id")
-    @Mapping(target = "eventId", source = "event.id")
-    BookingResponse toResponse(Booking booking);
+    @Mapping(target = "userId", source = "booking.user.id")
+    @Mapping(target = "eventId", source = "booking.event.id")
+    @Mapping(target = "eventName", source = "booking.event.eventName")
+    @Mapping(target = "tickets", source = "tickets")
+    BookingResponse toResponse(
+            Booking booking,
+            List<Ticket> tickets
+    );
 }
