@@ -1,6 +1,8 @@
 
 package com.ticketbooking.controller.booking;
 
+import com.ticketbooking.dto.booking.BookingResponse;
+import com.ticketbooking.dto.booking.ConfirmBookingRequest;
 import com.ticketbooking.dto.booking.HoldSeatsRequest;
 import com.ticketbooking.dto.booking.ReleaseSeatsRequest;
 import com.ticketbooking.security.CustomUserDetails;
@@ -58,6 +60,29 @@ public class BookingController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         bookingService.releaseSeats(
+                eventId,
+                request.eventSeatIds(),
+                userDetails.getId()
+        );
+    }
+    // Customer xác nhận đặt vé
+    @PostMapping("/{eventId}/confirm-booking")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BookingResponse confirmBooking(
+
+            @PathVariable
+            @Positive(message = "Event ID must be greater than 0")
+            Long eventId,
+
+            @Valid
+            @RequestBody
+            ConfirmBookingRequest request,
+
+            @AuthenticationPrincipal
+            CustomUserDetails userDetails
+
+    ) {
+        return bookingService.confirmBooking(
                 eventId,
                 request.eventSeatIds(),
                 userDetails.getId()

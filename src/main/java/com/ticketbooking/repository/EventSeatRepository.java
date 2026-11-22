@@ -3,7 +3,9 @@ package com.ticketbooking.repository;
 
 import com.ticketbooking.entity.EventSeat;
 import com.ticketbooking.enums.EventSeatStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -63,5 +65,17 @@ public interface EventSeatRepository extends JpaRepository<EventSeat, Long> {
     List<EventSeat> findByEventIdAndStatusWithSeat(
             @Param("eventId") Long eventId,
             @Param("status") EventSeatStatus status
+    );
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    SELECT es
+    FROM EventSeat es
+    WHERE es.event.id = :eventId
+    AND es.id IN :eventSeatIds
+    ORDER BY es.id ASC
+    """)
+    List<EventSeat> findByEventIdAndIdInForUpdate(
+            @Param("eventId") Long eventId,
+            @Param("eventSeatIds") Collection<Long> eventSeatIds
     );
 }

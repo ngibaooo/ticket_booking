@@ -19,15 +19,18 @@ public class RedisHoldService {
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> holdSeatsScript;
     private final DefaultRedisScript<Long> releaseSeatsScript;
+    private final DefaultRedisScript<Long> verifyHoldSeatsScript;
 
     public RedisHoldService(
             StringRedisTemplate redisTemplate,
             @Qualifier("holdSeatsScript") DefaultRedisScript<Long> holdSeatsScript,
-            @Qualifier("releaseSeatsScript") DefaultRedisScript<Long> releaseSeatsScript
+            @Qualifier("releaseSeatsScript") DefaultRedisScript<Long> releaseSeatsScript,
+            @Qualifier("verifyHoldSeatsScript") DefaultRedisScript<Long> verifyHoldSeatsScript
     ) {
         this.redisTemplate = redisTemplate;
         this.holdSeatsScript = holdSeatsScript;
         this.releaseSeatsScript = releaseSeatsScript;
+        this.verifyHoldSeatsScript = verifyHoldSeatsScript;
     }
 
     public void testConnection() {
@@ -114,6 +117,28 @@ public class RedisHoldService {
 
         Long result = redisTemplate.execute(
                 releaseSeatsScript,
+                keys,
+                customerId.toString()
+        );
+
+        return Long.valueOf(1).equals(result);
+    }
+    public boolean verifySeatsHeldByCustomer(
+            Long eventId,
+            List<Long> eventSeatIds,
+            Long customerId
+    ) {
+        if (eventSeatIds == null || eventSeatIds.isEmpty()) {
+            return false;
+        }
+
+        List<String> keys = eventSeatIds.stream()
+                .map(eventSeatId ->
+                        "event:" + eventId + ":seat:" + eventSeatId + ":hold")
+                .toList();
+
+        Long result = redisTemplate.execute(
+                verifyHoldSeatsScript,
                 keys,
                 customerId.toString()
         );
