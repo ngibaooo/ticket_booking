@@ -125,4 +125,123 @@ class RedisHoldServiceTest {
         // Ghế 4 vẫn thuộc khách hàng 200
         assertEquals("200", redisTemplate.opsForValue().get(key(4L)));
     }
+
+//  Release Event Seats Test
+    @Test
+    void shouldReleaseSeatsOwnedByCustomerSuccessfully() {
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        boolean result = redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        assertTrue(result);
+        assertNull(redisTemplate.opsForValue().get(key(1L)));
+        assertNull(redisTemplate.opsForValue().get(key(2L)));
+    }
+    @Test
+    void shouldReleaseOnlyRequestedSeats() {
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L, 2L, 3L),
+                100L
+        );
+
+        boolean result = redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        assertTrue(result);
+
+        assertNull(redisTemplate.opsForValue().get(key(1L)));
+        assertNull(redisTemplate.opsForValue().get(key(2L)));
+        assertEquals("100", redisTemplate.opsForValue().get(key(3L)));
+    }
+    @Test
+    void shouldNotReleaseSeatOwnedByAnotherCustomer() {
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        boolean result = redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L),
+                200L
+        );
+
+        assertFalse(result);
+        assertEquals("100", redisTemplate.opsForValue().get(key(1L)));
+    }
+    @Test
+    void shouldNotReleaseAnySeatWhenOneSeatIsOwnedByAnotherCustomer() {
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(2L),
+                200L
+        );
+
+        boolean result = redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L, 2L),
+                100L
+        );
+
+        assertFalse(result);
+
+        // Ghế 1 vẫn thuộc khách hàng 100
+        assertEquals("100", redisTemplate.opsForValue().get(key(1L)));
+
+        // Ghế 2 vẫn thuộc khách hàng 200
+        assertEquals("200", redisTemplate.opsForValue().get(key(2L)));
+    }
+    @Test
+    void shouldReleaseExpiredSeatSuccessfully() {
+        boolean result = redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        assertTrue(result);
+        assertNull(redisTemplate.opsForValue().get(key(1L)));
+    }
+    @Test
+    void shouldReleaseAlreadyReleasedSeatSuccessfully() {
+        redisHoldService.holdSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        boolean result = redisHoldService.releaseSeats(
+                EVENT_ID,
+                List.of(1L),
+                100L
+        );
+
+        assertTrue(result);
+        assertNull(redisTemplate.opsForValue().get(key(1L)));
+    }
 }
