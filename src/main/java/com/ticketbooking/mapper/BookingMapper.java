@@ -1,5 +1,6 @@
 package com.ticketbooking.mapper;
 
+import com.ticketbooking.dto.booking.BookingHistoryResponse;
 import com.ticketbooking.dto.booking.BookingResponse;
 import com.ticketbooking.entity.Booking;
 import com.ticketbooking.entity.Ticket;
@@ -22,4 +23,7 @@ public interface BookingMapper {
             Booking booking,
             List<Ticket> tickets
     );
+    @Mapping(target = "eventId", source = "event.id")
+    @Mapping(target = "eventName", source = "event.eventName")
+    BookingHistoryResponse toHistoryResponse(Booking booking);
 }
