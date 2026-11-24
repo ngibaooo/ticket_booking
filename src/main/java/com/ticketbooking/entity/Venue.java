@@ -44,6 +44,19 @@ public class Venue {
 
     protected Venue() {
     }
+    public Venue(
+            String venueName,
+            String address,
+            String description,
+            Integer capacity,
+            VenueStatus status
+    ) {
+        this.venueName = venueName;
+        this.address = address;
+        this.description = description;
+        this.capacity = capacity;
+        this.status = status;
+    }
 
     @PrePersist
     protected void onCreate() {
