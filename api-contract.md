@@ -318,10 +318,11 @@ Khi hủy đơn thành công:
 
 ## 6. Ticket API
 
-| Method | Endpoint | Quyền | Chức năng |
-|---|---|---|---|
-| GET | `/api/v1/tickets/{id}` | CUSTOMER | Xem thông tin vé |
-| GET | `/api/v1/tickets/{id}/qr` | CUSTOMER | Lấy ảnh QR của vé |
+| Method | Endpoint | Quyền | Chức năng                       |
+|---|---|---|---------------------------------|
+| GET | `/api/v1/tickets` | CUSTOMER | Xem thông tin tất cả vé         |
+| GET | `/api/v1/tickets/{id}` | CUSTOMER | Xem thông tin chi tiết của 1 vé |
+| GET | `/api/v1/tickets/{id}/qr` | CUSTOMER | Lấy ảnh QR của vé               |
 | POST | `/api/v1/admin/tickets/validate` | ADMIN | Kiểm tra và xác nhận sử dụng vé |
 
 ### Get Ticket QR – GET `/api/v1/tickets/{id}/qr`
