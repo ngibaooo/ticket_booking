@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" fill="none">
+  <rect width="960" height="540" fill="#13252b"/>
+  <g stroke="#244852" stroke-width="1">
+    <line x1="0" y1="90" x2="960" y2="90"/>
+    <line x1="0" y1="180" x2="960" y2="180"/>
+    <line x1="0" y1="270" x2="960" y2="270"/>
+    <line x1="0" y1="360" x2="960" y2="360"/>
+    <line x1="0" y1="450" x2="960" y2="450"/>
+    <line x1="160" y1="0" x2="160" y2="540"/>
+    <line x1="320" y1="0" x2="320" y2="540"/>
+    <line x1="480" y1="0" x2="480" y2="540"/>
+    <line x1="640" y1="0" x2="640" y2="540"/>
+    <line x1="800" y1="0" x2="800" y2="540"/>
+  </g>
+  <rect x="240" y="116" width="480" height="308" rx="12" fill="#19343c" stroke="#6db8a8" stroke-width="2"/>
+  <g fill="#6db8a8" opacity="0.88">
+    <rect x="284" y="160" width="36" height="28" rx="5"/>
+    <rect x="332" y="160" width="36" height="28" rx="5"/>
+    <rect x="380" y="160" width="36" height="28" rx="5"/>
+    <rect x="428" y="160" width="36" height="28" rx="5"/>
+    <rect x="496" y="160" width="36" height="28" rx="5"/>
+    <rect x="544" y="160" width="36" height="28" rx="5"/>
+    <rect x="592" y="160" width="36" height="28" rx="5"/>
+    <rect x="640" y="160" width="36" height="28" rx="5"/>
+  </g>
+  <g fill="#d7a855" opacity="0.9">
+    <rect x="284" y="208" width="36" height="28" rx="5"/>
+    <rect x="332" y="208" width="36" height="28" rx="5"/>
+    <rect x="496" y="208" width="36" height="28" rx="5"/>
+    <rect x="544" y="208" width="36" height="28" rx="5"/>
+  </g>
+  <g fill="#2b555f">
+    <rect x="380" y="208" width="36" height="28" rx="5"/>
+    <rect x="428" y="208" width="36" height="28" rx="5"/>
+    <rect x="592" y="208" width="36" height="28" rx="5"/>
+    <rect x="640" y="208" width="36" height="28" rx="5"/>
+    <rect x="284" y="256" width="36" height="28" rx="5"/>
+    <rect x="332" y="256" width="36" height="28" rx="5"/>
+    <rect x="380" y="256" width="36" height="28" rx="5"/>
+    <rect x="428" y="256" width="36" height="28" rx="5"/>
+    <rect x="496" y="256" width="36" height="28" rx="5"/>
+    <rect x="544" y="256" width="36" height="28" rx="5"/>
+    <rect x="592" y="256" width="36" height="28" rx="5"/>
+    <rect x="640" y="256" width="36" height="28" rx="5"/>
+  </g>
+  <rect x="320" y="334" width="320" height="36" rx="18" fill="#6db8a8" opacity="0.22" stroke="#6db8a8" stroke-width="1.6"/>
+</svg>
