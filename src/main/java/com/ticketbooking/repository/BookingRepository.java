@@ -3,6 +3,8 @@ package com.ticketbooking.repository;
 
 import com.ticketbooking.entity.Booking;
 import com.ticketbooking.enums.BookingStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,8 +13,10 @@ import java.util.Optional;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     // Lấy danh sách booking của một người dùng
-    List<Booking> findByUserId(Long userId);
-
+    Page<Booking> findByUserId(
+            Long userId,
+            Pageable pageable
+    );
     // Lấy booking theo mã booking
     Optional<Booking> findByBookingCode(String bookingCode);
 
@@ -24,4 +28,5 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             Long userId,
             BookingStatus status
     );
+    Optional<Booking> findByIdAndUserId(Long id, Long userId);
 }
