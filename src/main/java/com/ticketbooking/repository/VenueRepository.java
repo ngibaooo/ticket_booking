@@ -9,4 +9,5 @@ import java.util.List;
 
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findAllByStatus(VenueStatus status);
+    long countById(Long id);
 }

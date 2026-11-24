@@ -20,9 +20,11 @@ public record CreateSeatRequest(
         @NotNull(message = "Seat type is required")
         SeatType seatType,
 
+        @NotNull(message = "Position X is required")
         @PositiveOrZero(message = "Position X must be zero or greater")
         Integer positionX,
 
+        @NotNull(message = "Position Y is required")
         @PositiveOrZero(message = "Position Y must be zero or greater")
         Integer positionY
 
