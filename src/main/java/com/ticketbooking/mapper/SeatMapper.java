@@ -14,6 +14,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 public interface SeatMapper {
 
     @Mapping(target = "venueId", source = "venue.id")
+    @Mapping(target = "isActive", source = "active")
     SeatResponse toResponse(Seat seat);
 
     @BeanMapping(

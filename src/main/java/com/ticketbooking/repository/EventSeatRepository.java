@@ -78,4 +78,7 @@ public interface EventSeatRepository extends JpaRepository<EventSeat, Long> {
             @Param("eventId") Long eventId,
             @Param("eventSeatIds") Collection<Long> eventSeatIds
     );
+
+    // Kiểm tra ghế vật lý đã được sử dụng trong bất kỳ sự kiện nào
+    boolean existsBySeatId(Long seatId);
 }
