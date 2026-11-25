@@ -5,6 +5,7 @@ import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
+import com.ticketbooking.dto.eventSeat.EventSeatPricesResponse;
 import com.ticketbooking.dto.eventSeat.EventSeatResponse;
 import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
 import com.ticketbooking.dto.eventSeat.UpdateEventSeatPricesRequest;
@@ -363,6 +364,34 @@ public class EventServiceImpl implements EventService {
         // 3. Chuyển Event thành EventResponse
         return eventMapper.toResponse(event);
     }
+
+        @Override
+        public EventSeatPricesResponse getAdminEventSeatPrices(Long eventId) {
+                if (eventId == null || eventId <= 0) {
+                        throw new BadRequestException("Event ID must be greater than 0");
+                }
+
+                if (!eventRepository.existsById(eventId)) {
+                        throw new ResourceNotFoundException("Event not found with ID: " + eventId);
+                }
+
+                List<EventSeat> availableSeats = eventSeatRepository.findByEventIdAndStatusWithSeat(
+                                eventId,
+                                EventSeatStatus.AVAILABLE
+                );
+                BigDecimal standardPrice = availableSeats.stream()
+                                .filter(seat -> seat.getSeat().getSeatType() == SeatType.STANDARD)
+                                .map(EventSeat::getPrice)
+                                .findFirst()
+                                .orElse(null);
+                BigDecimal vipPrice = availableSeats.stream()
+                                .filter(seat -> seat.getSeat().getSeatType() == SeatType.VIP)
+                                .map(EventSeat::getPrice)
+                                .findFirst()
+                                .orElse(null);
+
+                return new EventSeatPricesResponse(standardPrice, vipPrice);
+        }
 
     @Override
     @Transactional

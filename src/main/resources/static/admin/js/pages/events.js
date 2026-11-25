@@ -28,17 +28,18 @@ function eventForm(event, venues) {
   const prices = event?.pricesByTier || (isEdit ? {} : { VIP: 1200000, STANDARD: 750000 });
   const statuses = [event?.status || "DRAFT", NEXT_STATUS[event?.status]].filter(Boolean);
   const locked = isEdit && !EDITABLE.includes(event.status);
+  const disabled = locked ? " disabled" : "";
   return `<form class="adm-modal-form adm-event-form" id="adm-event-form" novalidate>
     <div class="adm-modal-heading"><div><span class="adm-modal-kicker">SỰ KIỆN</span><h2>${isEdit ? "Cập nhật sự kiện" : "Tạo sự kiện"}</h2></div>
       <button class="adm-button adm-button-quiet" type="button" data-adm-modal-close aria-label="Đóng hộp thoại">Đóng</button>
     </div>
     <div class="adm-modal-body">
-      ${locked ? `<p class="adm-table-subtext">Sự kiện đã mở bán nên chỉ đổi được trạng thái, các thông tin khác không được lưu.</p>` : ""}
+      ${locked ? `<p class="adm-table-subtext">Sự kiện ở trạng thái này chỉ cho phép đổi trạng thái.</p>` : ""}
       <div class="adm-field"><label for="adm-event-name">Tên sự kiện</label>
-        <input id="adm-event-name" name="name" maxlength="150" value="${escapeHtml(event?.name || "")}" aria-describedby="adm-event-error">
+        <input id="adm-event-name" name="name" maxlength="150" value="${escapeHtml(event?.name || "")}" aria-describedby="adm-event-error"${disabled}>
       </div>
       <div class="adm-field"><label for="adm-event-description">Mô tả</label>
-        <textarea id="adm-event-description" name="description" rows="3">${escapeHtml(event?.description || "")}</textarea>
+        <textarea id="adm-event-description" name="description" rows="3"${disabled}>${escapeHtml(event?.description || "")}</textarea>
       </div>
       <div class="adm-form-grid">
         <div class="adm-field"><label for="adm-event-venue">Địa điểm</label>
@@ -53,15 +54,15 @@ function eventForm(event, venues) {
         </div>
       </div>
       <div class="adm-form-grid">
-        <div class="adm-field"><label for="adm-event-starts">Bắt đầu diễn ra</label><input id="adm-event-starts" name="startsAt" type="datetime-local" value="${toInputDateTime(event?.startsAt)}"></div>
-        <div class="adm-field"><label for="adm-event-ends">Kết thúc diễn ra</label><input id="adm-event-ends" name="endsAt" type="datetime-local" value="${toInputDateTime(event?.endsAt)}"></div>
-        <div class="adm-field"><label for="adm-event-sale-start">Mở bán vé</label><input id="adm-event-sale-start" name="saleStartsAt" type="datetime-local" value="${toInputDateTime(event?.saleStartsAt)}"></div>
-        <div class="adm-field"><label for="adm-event-sale-end">Kết thúc bán vé</label><input id="adm-event-sale-end" name="saleEndsAt" type="datetime-local" value="${toInputDateTime(event?.saleEndsAt)}"></div>
+        <div class="adm-field"><label for="adm-event-starts">Bắt đầu diễn ra</label><input id="adm-event-starts" name="startsAt" type="datetime-local" value="${toInputDateTime(event?.startsAt)}"${disabled}></div>
+        <div class="adm-field"><label for="adm-event-ends">Kết thúc diễn ra</label><input id="adm-event-ends" name="endsAt" type="datetime-local" value="${toInputDateTime(event?.endsAt)}"${disabled}></div>
+        <div class="adm-field"><label for="adm-event-sale-start">Mở bán vé</label><input id="adm-event-sale-start" name="saleStartsAt" type="datetime-local" value="${toInputDateTime(event?.saleStartsAt)}"${disabled}></div>
+        <div class="adm-field"><label for="adm-event-sale-end">Kết thúc bán vé</label><input id="adm-event-sale-end" name="saleEndsAt" type="datetime-local" value="${toInputDateTime(event?.saleEndsAt)}"${disabled}></div>
       </div>
       <fieldset class="adm-tier-fieldset"><legend>Giá theo hạng</legend>
         <div class="adm-form-grid">
           ${[["VIP", "VIP"], ["STANDARD", "Thường"]].map(([tier, label]) => `<div class="adm-field"><label for="adm-event-price-${tier.toLowerCase()}">${label} (VND)</label>
-            <input id="adm-event-price-${tier.toLowerCase()}" name="price-${tier}" type="number" min="1" step="1000" value="${Number(prices[tier]) || ""}"${isEdit && !event.pricesByTier ? ' placeholder="Để trống nếu giữ giá cũ"' : ""}>
+            <input id="adm-event-price-${tier.toLowerCase()}" name="price-${tier}" type="number" min="1" step="1000" value="${Number(prices[tier]) || ""}"${isEdit && !event.pricesByTier ? ' placeholder="Để trống nếu giữ giá cũ"' : ""}${disabled}>
           </div>`).join("")}
         </div>
       </fieldset>
@@ -117,6 +118,16 @@ function openEventModal(event, venues, refresh) {
 
     if (!startsAt || !endsAt || !saleStartsAt || !saleEndsAt) {
       error.textContent = "Nhập đầy đủ thời gian bắt đầu, kết thúc, mở bán và kết thúc bán.";
+      return;
+    }
+
+    if ((!event || EDITABLE.includes(event.status)) && new Date(startsAt) <= new Date()) {
+      error.textContent = "Thời gian bắt đầu sự kiện phải ở trong tương lai.";
+      return;
+    }
+
+    if ((!event || EDITABLE.includes(event.status)) && new Date(saleStartsAt) <= new Date()) {
+      error.textContent = "Thời gian mở bán phải ở trong tương lai.";
       return;
     }
 

@@ -405,8 +405,19 @@ export async function listEvents() {
   const page = await apiRequest("/admin/events?page=0&size=20&sortBy=createdAt&direction=DESC");
   return Promise.all((page?.content || []).map(async event => {
     const normalized = normalizeBackendEvent(event);
-    // Endpoint ghế công khai không trả DRAFT/CANCELLED nên không lấy được giá của hai loại này.
-    if (event.status === "DRAFT" || event.status === "CANCELLED") return normalized;
+    if (event.status === "DRAFT") {
+      try {
+        const prices = await apiRequest(`/admin/events/${encodeURIComponent(event.id)}/seats/prices`);
+        normalized.pricesByTier = {
+          VIP: Number(prices?.vipPrice || 0),
+          STANDARD: Number(prices?.standardPrice || 0)
+        };
+      } catch {
+        normalized.pricesByTier = null;
+      }
+      return normalized;
+    }
+    if (event.status === "CANCELLED") return normalized;
     try {
       const seatData = await apiRequest(`/events/${encodeURIComponent(event.id)}/seats`);
       const priceOf = type => Number(seatData?.seats?.find(seat => seat.seatType === type)?.price || 0);

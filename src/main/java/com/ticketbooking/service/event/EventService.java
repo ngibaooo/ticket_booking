@@ -6,6 +6,7 @@ import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
 import com.ticketbooking.dto.eventSeat.EventSeatsResponse;
+import com.ticketbooking.dto.eventSeat.EventSeatPricesResponse;
 import com.ticketbooking.dto.eventSeat.UpdateEventSeatPricesRequest;
 import com.ticketbooking.enums.EventStatus;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,8 @@ public interface EventService {
     );
 
     EventResponse getAdminEventById(Long eventId);
+
+        EventSeatPricesResponse getAdminEventSeatPrices(Long eventId);
 
     // Admin tạo sự kiện mới
     EventResponse createEvent(CreateEventRequest request);

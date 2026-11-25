@@ -146,8 +146,9 @@ Giá trị hợp lệ: `ACTIVE`, `INACTIVE`, `LOCKED`.
 | GET | `/api/v1/admin/events`                         | ADMIN  | Admin lấy danh sách sự kiện              |
 | GET | `/api/v1/admin/events/{id}`                    | ADMIN  | Admin xem chi tiết sự kiện               |
 | POST | `/api/v1/admin/events`                         | ADMIN  | Tạo sự kiện                              |
-| PUT | `/api/v1/admin/events/{id}`                    | ADMIN  | Cập nhật sự kiện                         |
-| PUT | `/api/v1/admin/events/{id}/status`             | ADMIN  | Cập nhật trạng thái sự kiện              |
+| PATCH | `/api/v1/admin/events/{id}`                  | ADMIN  | Cập nhật sự kiện                         |
+| PATCH | `/api/v1/admin/events/{id}/status`           | ADMIN  | Cập nhật trạng thái sự kiện              |
+| GET | `/api/v1/admin/events/{eventId}/seats/prices` | ADMIN | Xem giá ghế theo hạng, kể cả event DRAFT |
 | PUT | `/api/v1/admin/events/{eventId}/seats/prices`  | ADMIN  | Thiết lập giá ghế của sự kiện            |
 
 ### Create Event – POST `/api/v1/admin/events`
@@ -161,9 +162,13 @@ Request:
   "description": "Annual music festival",
   "startTime": "2026-12-20T19:00:00",
   "endTime": "2026-12-20T22:00:00",
-  "saleStartTime": "2026-11-15T08:00:00",
+  "saleStartTime": "2026-12-01T08:00:00",
   "saleEndTime": "2026-12-19T23:00:00",
-  "bannerUrl": "https://example.com/banner.jpg"
+  "bannerUrl": "https://example.com/banner.jpg",
+  "seatPrices": {
+    "standardPrice": 750000,
+    "vipPrice": 1200000
+  }
 }
 ```
 
@@ -179,7 +184,18 @@ Request:
 }
 ```
 
-Giá trị hợp lệ: `DRAFT`, `UPCOMING`, `OPEN`, `CLOSED`, `COMPLETED`, `CANCELLED`.
+Các chuyển trạng thái được hỗ trợ: `DRAFT → UPCOMING → OPEN → CLOSED → COMPLETED`. `CANCELLED` hiện chưa có chuyển trạng thái admin.
+
+### Get Event Seat Prices – GET `/api/v1/admin/events/{eventId}/seats/prices`
+
+Response:
+
+```json
+{
+  "standardPrice": 750000,
+  "vipPrice": 1200000
+}
+```
 
 ### Update Event Seat Prices – PUT `/api/v1/admin/events/{eventId}/seats/prices`
 
@@ -187,16 +203,8 @@ Request:
 
 ```json
 {
-  "seats": [
-    {
-      "eventSeatId": 101,
-      "price": 150000
-    },
-    {
-      "eventSeatId": 102,
-      "price": 250000
-    }
-  ]
+  "standardPrice": 750000,
+  "vipPrice": 1200000
 }
 ```
 

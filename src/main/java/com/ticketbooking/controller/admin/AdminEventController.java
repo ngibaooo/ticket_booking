@@ -5,6 +5,7 @@ import com.ticketbooking.dto.event.CreateEventRequest;
 import com.ticketbooking.dto.event.EventResponse;
 import com.ticketbooking.dto.event.UpdateEventRequest;
 import com.ticketbooking.dto.event.UpdateEventStatusRequest;
+import com.ticketbooking.dto.eventSeat.EventSeatPricesResponse;
 import com.ticketbooking.dto.eventSeat.UpdateEventSeatPricesRequest;
 import com.ticketbooking.enums.EventStatus;
 import com.ticketbooking.service.event.EventService;
@@ -156,5 +157,14 @@ public class AdminEventController {
 
         return ResponseEntity.noContent().build();
     }
+
+        @GetMapping("/{eventId}/seats/prices")
+        public EventSeatPricesResponse getEventSeatPrices(
+                        @PathVariable
+                        @Positive(message = "Event ID must be greater than 0")
+                        Long eventId
+        ) {
+                return eventService.getAdminEventSeatPrices(eventId);
+        }
 
 }
