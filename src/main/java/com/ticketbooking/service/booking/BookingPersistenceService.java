@@ -194,4 +194,54 @@ public class BookingPersistenceService {
                 .replace("-", "")
                 .toUpperCase();
     }
+    @Transactional
+    public BookingResponse cancelBooking(Long bookingId, Long customerId) {
+
+        // 1. Tìm booking thuộc về customer hiện tại
+        Booking booking = bookingRepository.findByIdAndUserId(bookingId, customerId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Booking not found"));
+
+        // 2. Chỉ cho phép hủy booking đang CONFIRMED
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new ConflictException(
+                    "Only confirmed bookings can be cancelled"
+            );
+        }
+
+        // 3. Lấy danh sách booking details
+        List<BookingDetail> bookingDetails =
+                bookingDetailRepository.findByBookingId(bookingId);
+
+        // 4. Lấy danh sách tickets của booking
+        List<Ticket> tickets =
+                ticketRepository.findByBookingDetailBookingId(bookingId);
+
+        // 5. Chuyển trạng thái tickets thành VOID
+        for (Ticket ticket : tickets) {
+            ticket.setStatus(TicketStatus.VOID);
+        }
+
+        // 6. Chuyển trạng thái các ghế về AVAILABLE
+        for (BookingDetail detail : bookingDetails) {
+            EventSeat eventSeat = detail.getEventSeat();
+            eventSeat.setStatus(EventSeatStatus.AVAILABLE);
+        }
+
+        // 7. Chuyển trạng thái booking thành CANCELLED
+        booking.setStatus(BookingStatus.CANCELLED);
+
+        // 8. Lưu thay đổi
+        ticketRepository.saveAll(tickets);
+
+        List<EventSeat> eventSeats = bookingDetails.stream()
+                .map(BookingDetail::getEventSeat)
+                .toList();
+
+        eventSeatRepository.saveAll(eventSeats);
+        bookingRepository.save(booking);
+
+        // 9. Trả về booking sau khi hủy
+        return bookingMapper.toResponse(booking, tickets);
+    }
 }

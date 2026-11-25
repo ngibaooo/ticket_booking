@@ -1,21 +1,24 @@
 
 package com.ticketbooking.controller.booking;
 
-import com.ticketbooking.dto.booking.BookingResponse;
-import com.ticketbooking.dto.booking.ConfirmBookingRequest;
-import com.ticketbooking.dto.booking.HoldSeatsRequest;
-import com.ticketbooking.dto.booking.ReleaseSeatsRequest;
+import com.ticketbooking.dto.booking.*;
 import com.ticketbooking.security.CustomUserDetails;
 import com.ticketbooking.service.booking.BookingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Set;
+
 @RestController
-@RequestMapping("/api/v1/events")
+@RequestMapping("/api/v1/bookings")
 @Validated
 public class BookingController {
 
@@ -85,6 +88,57 @@ public class BookingController {
         return bookingService.confirmBooking(
                 eventId,
                 request.eventSeatIds(),
+                userDetails.getId()
+        );
+    }
+    @GetMapping
+    public Page<BookingHistoryResponse> getMyBookings(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        return bookingService.getMyBookings(
+                userDetails.getId(),
+                pageable
+        );
+    }
+    // Customer xem chi tiết booking của mình
+    @GetMapping("/{id}")
+    public BookingResponse getBookingDetail(
+
+            @PathVariable
+            @Positive(message = "Booking ID must be greater than 0")
+            Long id,
+
+            @AuthenticationPrincipal
+            CustomUserDetails userDetails
+
+    ) {
+        return bookingService.getBookingDetail(
+                id,
+                userDetails.getId()
+        );
+    }
+    @PutMapping("/{id}/cancel")
+    public BookingResponse cancelBooking(
+            @PathVariable
+            @Positive(message = "Booking ID must be greater than 0")
+            Long id,
+
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return bookingService.cancelBooking(id, userDetails.getId());
+    }
+    @GetMapping("/hold-seats")
+    public Set<Long> getMyHeldSeats(
+            @RequestParam
+            @Positive(message = "Event ID must be greater than 0")
+            Long eventId,
+
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return bookingService.getMyHeldSeats(
+                eventId,
                 userDetails.getId()
         );
     }

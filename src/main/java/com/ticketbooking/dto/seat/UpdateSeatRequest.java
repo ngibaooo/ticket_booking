@@ -9,15 +9,15 @@ import jakarta.validation.constraints.Size;
 
 public record UpdateSeatRequest(
 
-        @NotBlank(message = "Seat number is required")
+//        @NotBlank(message = "Seat number is required")
         @Size(max = 10, message = "Seat number must not exceed 10 characters")
         String seatNumber,
 
-        @NotBlank(message = "Row name is required")
+//        @NotBlank(message = "Row name is required")
         @Size(max = 10, message = "Row name must not exceed 10 characters")
         String rowName,
 
-        @NotNull(message = "Seat type is required")
+//        @NotNull(message = "Seat type is required")
         SeatType seatType,
 
         @PositiveOrZero(message = "Position X must be zero or greater")
@@ -26,7 +26,7 @@ public record UpdateSeatRequest(
         @PositiveOrZero(message = "Position Y must be zero or greater")
         Integer positionY,
 
-        @NotNull(message = "Active status is required")
+//        @NotNull(message = "Active status is required")
         Boolean isActive
 
 ) {

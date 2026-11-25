@@ -50,7 +50,7 @@ public class Seat {
     @OneToMany(mappedBy = "seat", fetch = FetchType.LAZY)
     private List<EventSeat> eventSeats = new ArrayList<>();
 
-    protected Seat() {
+    public Seat() {
     }
 
     // Getters and Setters

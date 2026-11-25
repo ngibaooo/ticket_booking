@@ -145,4 +145,37 @@ public class RedisHoldService {
 
         return Long.valueOf(1).equals(result);
     }
+    public Set<Long> getHeldSeatIdsByCustomer(
+            Long eventId,
+            List<Long> eventSeatIds,
+            Long customerId
+    ) {
+        if (eventSeatIds == null || eventSeatIds.isEmpty()) {
+            return Set.of();
+        }
+
+        List<String> keys = eventSeatIds.stream()
+                .map(id -> "event:" + eventId + ":seat:" + id + ":hold")
+                .toList();
+
+        // Lấy danh sách customerId đang giữ các ghế
+        List<String> owners = redisTemplate.opsForValue()
+                .multiGet(keys);
+
+        if (owners == null) {
+            return Set.of();
+        }
+
+        Set<Long> heldSeatIds = new HashSet<>();
+
+        // Chỉ lấy ghế do customer hiện tại giữ
+        for (int i = 0; i < owners.size(); i++) {
+            if (owners.get(i) != null
+                    && owners.get(i).equals(customerId.toString())) {
+                heldSeatIds.add(eventSeatIds.get(i));
+            }
+        }
+
+        return heldSeatIds;
+    }
 }

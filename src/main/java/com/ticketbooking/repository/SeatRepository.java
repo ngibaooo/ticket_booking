@@ -20,4 +20,32 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
 
     // Tìm ghế theo ID và ID địa điểm
     Optional<Seat> findByIdAndVenueId(Long seatId, Long venueId);
+    // Sắp xếp ghế theo vị trí trên sơ đồ
+    List<Seat> findByVenueIdOrderByPositionYAscPositionXAscSeatNumberAsc(
+            Long venueId
+    );
+
+    // Đếm số ghế vật lý của một venue
+    long countByVenueId(Long venueId);
+
+    // Kiểm tra số ghế trùng, ngoại trừ ghế đang cập nhật
+    boolean existsByVenueIdAndSeatNumberAndIdNot(
+            Long venueId,
+            String seatNumber,
+            Long seatId
+    );
+    // Kiểm tra tọa độ đã tồn tại trong venue
+    boolean existsByVenueIdAndPositionXAndPositionY(
+            Long venueId,
+            Integer positionX,
+            Integer positionY
+    );
+
+    // Kiểm tra tọa độ trùng, ngoại trừ ghế đang cập nhật
+    boolean existsByVenueIdAndPositionXAndPositionYAndIdNot(
+            Long venueId,
+            Integer positionX,
+            Integer positionY,
+            Long seatId
+    );
 }
