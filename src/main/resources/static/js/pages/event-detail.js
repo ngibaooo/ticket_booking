@@ -26,6 +26,7 @@ export function renderEventDetailPage(container, ctx, eventId) {
         api.getEventById(eventId),
         api.getEventSeats(eventId).catch(() => ({ seats: [] }))
       ]);
+      const venue = ev?.venueId ? await api.getVenueById(ev.venueId) : null;
       if (destroyed) return;
 
       const seats = (seatsResp?.seats || []).filter((s) => s.isActive !== false);
@@ -103,8 +104,18 @@ export function renderEventDetailPage(container, ctx, eventId) {
             <div class="vn-kv-list">
               <div class="vn-kv-row">
                 <span class="vn-kv-label">Địa điểm</span>
-                <span class="vn-kv-value">${escapeHtml(ev.venueName || "Đang cập nhật")}</span>
+                <span class="vn-kv-value">${escapeHtml(venue?.venueName || ev.venueName || "Đang cập nhật")}</span>
               </div>
+              ${
+                venue?.address
+                  ? `
+                    <div class="vn-kv-row">
+                      <span class="vn-kv-label">Địa chỉ</span>
+                      <span class="vn-kv-value">${escapeHtml(venue.address)}</span>
+                    </div>
+                  `
+                  : ""
+              }
               <div class="vn-kv-row">
                 <span class="vn-kv-label">Bắt đầu</span>
                 <span class="vn-kv-value vn-tabular">${escapeHtml(formatDateTime(ev.startTime))}</span>

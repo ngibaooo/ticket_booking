@@ -12,6 +12,7 @@ import {
 const state = {
   keyword: "",
   status: "",
+  venueId: "",
   sort: "startTime,ASC",
   page: 0,
   size: 9
@@ -19,20 +20,26 @@ const state = {
 
 export function renderEventsPage(container, ctx) {
   let destroyed = false;
+  let venues = [];
 
   async function load() {
     container.innerHTML = renderSkeleton();
     const [sortBy, direction] = state.sort.split(",");
     try {
-      const pageData = await api.getEvents({
-        keyword: state.keyword,
-        status: state.status,
-        page: state.page,
-        size: state.size,
-        sortBy,
-        direction
-      });
+      const [pageData, venueList] = await Promise.all([
+        api.getEvents({
+          keyword: state.keyword,
+          status: state.status,
+          venueId: state.venueId,
+          page: state.page,
+          size: state.size,
+          sortBy,
+          direction
+        }),
+        venues.length > 0 ? Promise.resolve(venues) : api.getVenues()
+      ]);
       if (destroyed) return;
+      venues = Array.isArray(venueList) ? venueList : [];
       renderContent(pageData);
     } catch (err) {
       if (destroyed) return;
@@ -61,7 +68,7 @@ export function renderEventsPage(container, ctx) {
     const totalElements = pageData?.totalElements ?? items.length;
     const totalPages = pageData?.totalPages ?? 1;
     const currentPage = pageData?.number ?? state.page;
-    const isFiltered = Boolean(state.keyword.trim() || state.status);
+    const isFiltered = Boolean(state.keyword.trim() || state.status || state.venueId);
 
     // First open event becomes spotlight on unfiltered first page
     const spotlight =
@@ -88,7 +95,7 @@ export function renderEventsPage(container, ctx) {
           </div>
         </div>
 
-        <form class="vn-toolbar" id="vn-events-filter" role="search">
+        <form class="vn-toolbar ${venues.length > 0 ? "has-venue" : ""}" id="vn-events-filter" role="search">
           <div class="vn-search-wrap">
             ${icons.search(16)}
             <label class="vn-sr-only" for="vn-search-input">Tìm kiếm sự kiện</label>
@@ -102,6 +109,27 @@ export function renderEventsPage(container, ctx) {
               value="${escapeHtml(state.keyword)}"
             >
           </div>
+
+          ${
+            venues.length > 0
+              ? `
+                <div>
+                  <label class="vn-sr-only" for="vn-venue-select">Lọc theo địa điểm</label>
+                  <select id="vn-venue-select" class="vn-select" name="venueId">
+                    <option value="" ${state.venueId === "" ? "selected" : ""}>Tất cả địa điểm</option>
+                    ${venues
+                      .map(
+                        (v) =>
+                          `<option value="${v.id}" ${
+                            String(state.venueId) === String(v.id) ? "selected" : ""
+                          }>${escapeHtml(v.venueName)}</option>`
+                      )
+                      .join("")}
+                  </select>
+                </div>
+              `
+              : ""
+          }
 
           <div>
             <label class="vn-sr-only" for="vn-status-select">Lọc theo trạng thái</label>
@@ -154,12 +182,16 @@ export function renderEventsPage(container, ctx) {
       e.preventDefault();
       const fd = new FormData(form);
       state.keyword = String(fd.get("keyword") || "");
+      state.venueId = String(fd.get("venueId") || "");
       state.status = String(fd.get("status") || "");
       state.sort = String(fd.get("sort") || "startTime,ASC");
       state.page = 0;
       load();
     });
 
+    form?.querySelector("#vn-venue-select")?.addEventListener("change", () => {
+      form.requestSubmit();
+    });
     form?.querySelector("#vn-status-select")?.addEventListener("change", () => {
       form.requestSubmit();
     });
@@ -180,6 +212,7 @@ export function renderEventsPage(container, ctx) {
 
     container.querySelector("[data-action='reset-filters']")?.addEventListener("click", () => {
       state.keyword = "";
+      state.venueId = "";
       state.status = "";
       state.sort = "startTime,ASC";
       state.page = 0;

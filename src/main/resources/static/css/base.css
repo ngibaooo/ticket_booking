@@ -693,6 +693,10 @@ p {
   margin-bottom: var(--vn-space-6);
 }
 
+.vn-toolbar.has-venue {
+  grid-template-columns: minmax(0, 1.4fr) minmax(170px, 0.9fr) minmax(150px, 0.75fr) minmax(170px, 0.85fr) auto;
+}
+
 .vn-search-wrap {
   position: relative;
 }
@@ -1761,7 +1765,8 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .vn-toolbar {
+  .vn-toolbar,
+  .vn-toolbar.has-venue {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1786,6 +1791,7 @@ p {
 
   .vn-events-grid,
   .vn-toolbar,
+  .vn-toolbar.has-venue,
   .vn-tickets-list {
     grid-template-columns: 1fr;
   }

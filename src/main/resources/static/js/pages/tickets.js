@@ -14,6 +14,37 @@ import {
 export function renderTicketsPage(container, ctx, queryParams) {
   let destroyed = false;
   const highlightBookingId = queryParams?.get("new") || "";
+  const qrObjectUrls = new Map();
+
+  function revokeQrUrls() {
+    for (const url of qrObjectUrls.values()) {
+      URL.revokeObjectURL(url);
+    }
+    qrObjectUrls.clear();
+  }
+
+  async function hydrateBackendQrImages(bookings) {
+    if (getMode() === "demo") return;
+    const validTickets = bookings
+      .flatMap((b) => b.tickets || [])
+      .filter((t) => t.status === "VALID" && t.id);
+
+    await Promise.all(
+      validTickets.map(async (t) => {
+        const objUrl = await api.getTicketQrObjectUrl(t.id);
+        if (destroyed) {
+          if (objUrl) URL.revokeObjectURL(objUrl);
+          return;
+        }
+        if (!objUrl) return;
+        qrObjectUrls.set(String(t.id), objUrl);
+        const frame = container.querySelector(`[data-qr-frame="${t.id}"]`);
+        if (frame) {
+          frame.innerHTML = `<img src="${objUrl}" alt="Mã QR vé ${escapeHtml(t.ticketCode)}">`;
+        }
+      })
+    );
+  }
 
   async function load() {
     const session = getSession();
@@ -39,9 +70,11 @@ export function renderTicketsPage(container, ctx, queryParams) {
     `;
 
     try {
+      revokeQrUrls();
       const bookings = await api.getMyBookings();
       if (destroyed) return;
       renderList(bookings || []);
+      hydrateBackendQrImages(bookings || []);
     } catch (err) {
       if (destroyed) return;
       container.innerHTML = `
@@ -93,11 +126,16 @@ export function renderTicketsPage(container, ctx, queryParams) {
     // Zoom QR modal
     container.querySelectorAll("[data-zoom-ticket]").forEach((btn) => {
       btn.addEventListener("click", () => {
+        const ticketId = btn.dataset.ticketId;
         const ticketCode = btn.dataset.zoomTicket;
         const seatNumber = btn.dataset.seatNumber;
         const eventName = btn.dataset.eventName;
         const bookingCode = btn.dataset.bookingCode;
         const statusLabel = btn.dataset.statusLabel;
+        const serverQrUrl = ticketId ? qrObjectUrls.get(String(ticketId)) : null;
+        const qrContent = serverQrUrl
+          ? `<img src="${serverQrUrl}" alt="Mã QR vé ${escapeHtml(ticketCode)}">`
+          : renderQrSvg(ticketCode, `Mã QR vé ${ticketCode}`);
 
         const close = openModal({
           title: `Vé điện tử — Ghế ${seatNumber}`,
@@ -107,7 +145,7 @@ export function renderTicketsPage(container, ctx, queryParams) {
               <p class="vn-mono" style="font-size:12.5px;color:var(--vn-muted);margin-top:4px;margin-inline:auto;">
                 Đơn ${escapeHtml(bookingCode)} · ${escapeHtml(statusLabel)}
               </p>
-              <div class="vn-qr-large">${renderQrSvg(ticketCode, `Mã QR vé ${ticketCode}`)}</div>
+              <div class="vn-qr-large">${qrContent}</div>
               <p class="vn-mono" style="font-size:16px;font-weight:700;letter-spacing:0.06em;margin-inline:auto;">
                 ${escapeHtml(ticketCode)}
               </p>
@@ -167,6 +205,7 @@ export function renderTicketsPage(container, ctx, queryParams) {
   load();
   return () => {
     destroyed = true;
+    revokeQrUrls();
   };
 }
 
@@ -174,8 +213,7 @@ function renderBookingCard(booking, isHighlighted) {
   const bStatus = bookingStatusMeta(booking.status);
   const tickets = Array.isArray(booking.tickets) ? booking.tickets : [];
   const hasUsedTicket = tickets.some((t) => t.status === "USED");
-  const canCancel =
-    booking.status === "CONFIRMED" && !hasUsedTicket && getMode() === "demo";
+  const canCancel = booking.status === "CONFIRMED" && !hasUsedTicket;
 
   return `
     <article
@@ -253,12 +291,13 @@ function renderTicketStub(ticket, booking) {
       </div>
 
       <div class="vn-ticket-right">
-        <div class="vn-qr-frame">
+        <div class="vn-qr-frame" data-qr-frame="${escapeHtml(ticket.id)}">
           ${renderQrSvg(ticket.ticketCode, `Mã QR vé ${ticket.ticketCode}`)}
         </div>
         <button
           type="button"
           class="vn-qr-zoom-btn"
+          data-ticket-id="${escapeHtml(ticket.id)}"
           data-zoom-ticket="${escapeHtml(ticket.ticketCode)}"
           data-seat-number="${escapeHtml(ticket.seatNumber || "")}"
           data-event-name="${escapeHtml(booking.eventName || "")}"

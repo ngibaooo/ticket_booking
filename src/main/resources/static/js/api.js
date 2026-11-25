@@ -5,7 +5,6 @@ const MODE_KEY = "vn-customer-mode-v1"; // "live" | "demo"
 const SESSION_KEY = "vn-customer-session-v1";
 const HOLD_KEY = "vn-customer-hold-v1";
 const DEMO_STORE_KEY = "vn-customer-demo-store-v1";
-const LIVE_BOOKINGS_KEY = "vn-customer-live-bookings-v1";
 
 export const HOLD_DURATION_SECONDS = 300;
 export const MAX_SEATS_PER_ORDER = 6;
@@ -125,34 +124,24 @@ export function resetDemoData() {
   clearActiveHold();
 }
 
-/* ============================================================================
-   Live local booking cache (bridges GET /bookings & cancel until backend adds them)
-   ============================================================================ */
-
-function loadLiveBookings(userId) {
-  try {
-    const raw = localStorage.getItem(LIVE_BOOKINGS_KEY);
-    const map = raw ? JSON.parse(raw) : {};
-    return Array.isArray(map[String(userId)]) ? map[String(userId)] : [];
-  } catch {
-    return [];
+const DEMO_VENUES = [
+  {
+    id: 1,
+    venueName: "Nhà hát Thành phố — TP. Hồ Chí Minh",
+    address: "07 Công trường Lam Sơn, Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+    description: "Nhà hát cổ điển tại trung tâm Quận 1 với hệ thống âm học tiêu chuẩn giao hưởng.",
+    capacity: 96,
+    status: "ACTIVE"
+  },
+  {
+    id: 2,
+    venueName: "Cung Văn hóa Hữu nghị — Hà Nội",
+    address: "91 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội",
+    description: "Khán phòng hội nghị và biểu diễn nghệ thuật lớn tại trung tâm Hà Nội.",
+    capacity: 60,
+    status: "ACTIVE"
   }
-}
-
-function saveLiveBooking(userId, booking) {
-  try {
-    const raw = localStorage.getItem(LIVE_BOOKINGS_KEY);
-    const map = raw ? JSON.parse(raw) : {};
-    const list = Array.isArray(map[String(userId)]) ? map[String(userId)] : [];
-    const idx = list.findIndex((b) => b.id === booking.id);
-    if (idx >= 0) list[idx] = booking;
-    else list.unshift(booking);
-    map[String(userId)] = list;
-    localStorage.setItem(LIVE_BOOKINGS_KEY, JSON.stringify(map));
-  } catch {
-    // Ignore quota errors
-  }
-}
+];
 
 /* ============================================================================
    HTTP helper for Live Backend
@@ -211,7 +200,7 @@ async function request(path, options = {}) {
     throw new ApiError(msg, res.status, payload?.validationErrors || null);
   }
 
-  // Support both direct DTO responses (current backend) and { success, data } wrapper (api-contract)
+  // Support both direct DTO responses (current backend) and { success, data } wrapper
   if (payload && typeof payload === "object" && "data" in payload && "success" in payload) {
     return payload.data;
   }
@@ -219,7 +208,7 @@ async function request(path, options = {}) {
 }
 
 /* ============================================================================
-   Public API surface
+   Public API surface (aligned 100% with develop backend controllers)
    ============================================================================ */
 
 export const api = {
@@ -339,9 +328,34 @@ export const api = {
     return updated;
   },
 
+  async getVenues() {
+    if (getMode() === "demo") {
+      return DEMO_VENUES;
+    }
+    try {
+      const list = await request("/venues", { skipAuthReset: true });
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getVenueById(venueId) {
+    if (!venueId) return null;
+    if (getMode() === "demo") {
+      return DEMO_VENUES.find((v) => String(v.id) === String(venueId)) || null;
+    }
+    try {
+      return await request(`/venues/${venueId}`, { skipAuthReset: true });
+    } catch {
+      return null;
+    }
+  },
+
   async getEvents({
     keyword = "",
     status = "",
+    venueId = "",
     page = 0,
     size = 9,
     sortBy = "startTime",
@@ -360,6 +374,9 @@ export const api = {
       }
       if (status) {
         list = list.filter((e) => e.status === status);
+      }
+      if (venueId) {
+        list = list.filter((e) => String(e.venueId) === String(venueId));
       }
       list.sort((a, b) => {
         const va = String(a[sortBy] || "");
@@ -384,6 +401,7 @@ export const api = {
     const params = new URLSearchParams();
     if (keyword.trim()) params.set("keyword", keyword.trim());
     if (status) params.set("status", status);
+    if (venueId) params.set("venueId", String(venueId));
     params.set("page", String(page));
     params.set("size", String(size));
     params.set("sortBy", sortBy);
@@ -424,6 +442,27 @@ export const api = {
     return request(`/events/${eventId}/seats`);
   },
 
+  async getMyHeldSeats(eventId) {
+    const session = getSession();
+    if (!session) return [];
+
+    if (getMode() === "demo") {
+      const store = loadDemoStore();
+      pruneExpiredDemoHolds(store);
+      const ids = [];
+      const prefix = `${eventId}:`;
+      for (const [key, val] of Object.entries(store.holds || {})) {
+        if (key.startsWith(prefix) && val.userId === session.user.id) {
+          ids.push(Number(key.slice(prefix.length)));
+        }
+      }
+      return ids;
+    }
+
+    const res = await request(`/bookings/hold-seats?eventId=${encodeURIComponent(String(eventId))}`);
+    return Array.isArray(res) ? res.map(Number) : [];
+  },
+
   async holdSeats(eventId, seatObjects, eventMeta) {
     const session = getSession();
     if (!session) throw new ApiError("Vui lòng đăng nhập để giữ ghế.", 401);
@@ -437,7 +476,6 @@ export const api = {
       const seatList = store.seatMaps[Number(eventId)] || [];
       const seatMap = new Map(seatList.map((s) => [s.id, s]));
 
-      // All-or-nothing atomic check
       for (const sid of eventSeatIds) {
         const s = seatMap.get(sid);
         const existingHold = store.holds[`${eventId}:${sid}`];
@@ -459,7 +497,7 @@ export const api = {
       }
       saveDemoStore(store);
     } else {
-      await request(`/events/${eventId}/hold-seats`, {
+      await request(`/bookings/${eventId}/hold-seats`, {
         method: "POST",
         body: { eventSeatIds }
       });
@@ -507,7 +545,7 @@ export const api = {
     }
 
     try {
-      await request(`/events/${eventId}/hold-seats`, {
+      await request(`/bookings/${eventId}/hold-seats`, {
         method: "DELETE",
         body: { eventSeatIds }
       });
@@ -593,21 +631,15 @@ export const api = {
       return booking;
     }
 
-    const res = await request(`/events/${eventId}/confirm-booking`, {
+    const res = await request(`/bookings/${eventId}/confirm-booking`, {
       method: "POST",
       body: { eventSeatIds }
     });
-    const enriched = {
-      ...res,
-      venueName: holdRecord.venueName || "",
-      startTime: holdRecord.startTime || ""
-    };
-    saveLiveBooking(session.user.id, enriched);
     clearActiveHold();
-    return enriched;
+    return res;
   },
 
-  async getMyBookings() {
+  async getMyBookings({ page = 0, size = 20 } = {}) {
     const session = getSession();
     if (!session) throw new ApiError("Vui lòng đăng nhập để xem vé đã đặt.", 401);
 
@@ -616,18 +648,38 @@ export const api = {
       return store.bookings.filter((b) => b.userId === session.user.id);
     }
 
-    try {
-      const remote = await request("/bookings");
-      if (Array.isArray(remote)) return remote;
-      if (remote && Array.isArray(remote.content)) return remote.content;
-      return loadLiveBookings(session.user.id);
-    } catch (err) {
-      // Backend on current develop branch does not yet expose GET /api/v1/bookings
-      if (err.status === 404 || err.status === 405 || err.status === 501) {
-        return loadLiveBookings(session.user.id);
-      }
-      throw err;
+    const pageResp = await request(`/bookings?page=${page}&size=${size}`);
+    const historyItems = Array.isArray(pageResp)
+      ? pageResp
+      : Array.isArray(pageResp?.content)
+      ? pageResp.content
+      : [];
+
+    if (historyItems.length === 0) return [];
+
+    // Hydrate each booking with its full BookingResponse (including tickets list)
+    const detailed = await Promise.all(
+      historyItems.map((item) =>
+        request(`/bookings/${item.id}`).catch(() => ({ ...item, tickets: [] }))
+      )
+    );
+    return detailed;
+  },
+
+  async getBookingDetail(bookingId) {
+    const session = getSession();
+    if (!session) throw new ApiError("Vui lòng đăng nhập.", 401);
+
+    if (getMode() === "demo") {
+      const store = loadDemoStore();
+      const found = store.bookings.find(
+        (b) => String(b.id) === String(bookingId) && b.userId === session.user.id
+      );
+      if (!found) throw new ApiError("Không tìm thấy đơn đặt vé.", 404);
+      return found;
     }
+
+    return request(`/bookings/${bookingId}`);
   },
 
   async cancelBooking(bookingId) {
@@ -661,20 +713,44 @@ export const api = {
       return booking;
     }
 
+    return request(`/bookings/${bookingId}/cancel`, {
+      method: "PUT"
+    });
+  },
+
+  async getMyTickets({ page = 0, size = 20 } = {}) {
+    const session = getSession();
+    if (!session) throw new ApiError("Vui lòng đăng nhập.", 401);
+
+    if (getMode() === "demo") {
+      const store = loadDemoStore();
+      const all = store.bookings
+        .filter((b) => b.userId === session.user.id)
+        .flatMap((b) => b.tickets || []);
+      return { content: all, totalElements: all.length, totalPages: 1, number: 0, size };
+    }
+
+    return request(`/tickets?page=${page}&size=${size}`);
+  },
+
+  async getTicketQrObjectUrl(ticketId) {
+    if (getMode() === "demo") return null;
+    const session = getSession();
+    if (!session?.accessToken) return null;
+
     try {
-      const res = await request(`/bookings/${bookingId}/cancel`, {
-        method: "PUT"
+      const res = await fetch(`${API_BASE}/tickets/${ticketId}/qr`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          Accept: "image/png"
+        }
       });
-      if (res) saveLiveBooking(session.user.id, res);
-      return res;
-    } catch (err) {
-      if (err.status === 404 || err.status === 405 || err.status === 501) {
-        throw new ApiError(
-          "Backend chưa mở API hủy đơn PUT /api/v1/bookings/{id}/cancel trên nhánh develop hiện tại.",
-          501
-        );
-      }
-      throw err;
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
     }
   }
 };

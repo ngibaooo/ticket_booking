@@ -2,9 +2,11 @@ import {
   api,
   clearActiveHold,
   getActiveHold,
+  getMode,
   getSession,
   HOLD_DURATION_SECONDS,
-  MAX_SEATS_PER_ORDER
+  MAX_SEATS_PER_ORDER,
+  setActiveHold
 } from "../api.js";
 import { icons } from "../icons.js";
 import {
@@ -50,14 +52,54 @@ export function renderSeatmapPage(container, ctx, eventId) {
     }
 
     try {
-      const [ev, seatResp] = await Promise.all([
+      const session = getSession();
+      const [ev, seatResp, serverHeldIds] = await Promise.all([
         eventData ? Promise.resolve(eventData) : api.getEventById(eventId),
-        api.getEventSeats(eventId)
+        api.getEventSeats(eventId),
+        session ? api.getMyHeldSeats(eventId).catch(() => null) : Promise.resolve(null)
       ]);
       if (destroyed) return;
       eventData = ev;
       seatsData = seatResp?.seats || [];
       lastSyncedAt = new Date();
+
+      // Synchronize local hold record with authoritative Redis hold state from GET /api/v1/bookings/hold-seats
+      if (session && Array.isArray(serverHeldIds)) {
+        const localHold = myHoldForThisEvent();
+        if (serverHeldIds.length > 0) {
+          const heldSet = new Set(serverHeldIds.map(Number));
+          const heldSeatObjects = seatsData
+            .filter((s) => heldSet.has(s.id))
+            .map((s) => ({
+              id: s.id,
+              seatNumber: s.seatNumber,
+              rowName: s.rowName,
+              seatType: s.seatType,
+              price: Number(s.price)
+            }));
+          const sameIds =
+            localHold &&
+            localHold.seats.length === heldSeatObjects.length &&
+            localHold.seats.every((s) => heldSet.has(s.id));
+          if (!sameIds && heldSeatObjects.length > 0) {
+            setActiveHold({
+              mode: getMode(),
+              userId: session.user.id,
+              eventId: Number(eventId),
+              eventName: ev.eventName,
+              venueName: ev.venueName || "",
+              startTime: ev.startTime || "",
+              seats: heldSeatObjects,
+              heldAt: localHold?.heldAt || Date.now(),
+              expiresAt: localHold?.expiresAt || Date.now() + HOLD_DURATION_SECONDS * 1000
+            });
+            ctx.refreshShell();
+          }
+        } else if (localHold) {
+          clearActiveHold();
+          ctx.refreshShell();
+        }
+      }
 
       // Drop selected seats that became unavailable during polling
       const mine = myHoldForThisEvent();
