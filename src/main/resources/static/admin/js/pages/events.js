@@ -11,6 +11,10 @@ const eventStatusLabels = {
   CANCELLED: "Đã hủy"
 };
 
+// Backend chỉ cho đổi trạng thái từng bước.
+const NEXT_STATUS = { DRAFT: "UPCOMING", UPCOMING: "OPEN", OPEN: "CLOSED", CLOSED: "COMPLETED" };
+const EDITABLE = ["DRAFT", "UPCOMING"];
+
 function toInputDateTime(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -21,24 +25,30 @@ function toInputDateTime(value) {
 
 function eventForm(event, venues) {
   const isEdit = Boolean(event);
-  const prices = event?.pricesByTier || { VIP: 1200000, STANDARD: 750000 };
+  const prices = event?.pricesByTier || (isEdit ? {} : { VIP: 1200000, STANDARD: 750000 });
+  const statuses = [event?.status || "DRAFT", NEXT_STATUS[event?.status]].filter(Boolean);
+  const locked = isEdit && !EDITABLE.includes(event.status);
   return `<form class="adm-modal-form adm-event-form" id="adm-event-form" novalidate>
     <div class="adm-modal-heading"><div><span class="adm-modal-kicker">SỰ KIỆN</span><h2>${isEdit ? "Cập nhật sự kiện" : "Tạo sự kiện"}</h2></div>
       <button class="adm-button adm-button-quiet" type="button" data-adm-modal-close aria-label="Đóng hộp thoại">Đóng</button>
     </div>
     <div class="adm-modal-body">
+      ${locked ? `<p class="adm-table-subtext">Sự kiện đã mở bán nên chỉ đổi được trạng thái, các thông tin khác không được lưu.</p>` : ""}
       <div class="adm-field"><label for="adm-event-name">Tên sự kiện</label>
-        <input id="adm-event-name" name="name" maxlength="160" value="${escapeHtml(event?.name || "")}" aria-describedby="adm-event-error">
+        <input id="adm-event-name" name="name" maxlength="150" value="${escapeHtml(event?.name || "")}" aria-describedby="adm-event-error">
+      </div>
+      <div class="adm-field"><label for="adm-event-description">Mô tả</label>
+        <textarea id="adm-event-description" name="description" rows="3">${escapeHtml(event?.description || "")}</textarea>
       </div>
       <div class="adm-form-grid">
         <div class="adm-field"><label for="adm-event-venue">Địa điểm</label>
-          <select id="adm-event-venue" name="venueId">
-            ${venues.map(venue => `<option value="${escapeHtml(venue.id)}"${event?.venueId === venue.id ? " selected" : ""}>${escapeHtml(venue.name)}</option>`).join("")}
+          <select id="adm-event-venue" name="venueId"${isEdit ? " disabled" : ""}>
+            ${venues.map(venue => `<option value="${escapeHtml(venue.id)}"${String(event?.venueId) === String(venue.id) ? " selected" : ""}>${escapeHtml(venue.venueName || venue.name)}</option>`).join("")}
           </select>
         </div>
         <div class="adm-field"><label for="adm-event-status">Trạng thái</label>
-          <select id="adm-event-status" name="status">
-            ${Object.entries(eventStatusLabels).map(([value, label]) => `<option value="${value}"${event?.status === value ? " selected" : ""}>${label}</option>`).join("")}
+          <select id="adm-event-status" name="status"${isEdit ? "" : " disabled"}>
+            ${statuses.map(value => `<option value="${value}"${event?.status === value ? " selected" : ""}>${eventStatusLabels[value]}</option>`).join("")}
           </select>
         </div>
       </div>
@@ -51,7 +61,7 @@ function eventForm(event, venues) {
       <fieldset class="adm-tier-fieldset"><legend>Giá theo hạng</legend>
         <div class="adm-form-grid">
           ${[["VIP", "VIP"], ["STANDARD", "Thường"]].map(([tier, label]) => `<div class="adm-field"><label for="adm-event-price-${tier.toLowerCase()}">${label} (VND)</label>
-            <input id="adm-event-price-${tier.toLowerCase()}" name="price-${tier}" type="number" min="1" step="1000" value="${Number(prices[tier]) || 0}">
+            <input id="adm-event-price-${tier.toLowerCase()}" name="price-${tier}" type="number" min="1" step="1000" value="${Number(prices[tier]) || ""}"${isEdit && !event.pricesByTier ? ' placeholder="Để trống nếu giữ giá cũ"' : ""}>
           </div>`).join("")}
         </div>
       </fieldset>
@@ -92,6 +102,7 @@ function openEventModal(event, venues, refresh) {
     error.textContent = "";
 
     const name = nameInput.value.trim();
+    const description = modal.querySelector("#adm-event-description").value.trim();
     const startsAt = modal.querySelector("#adm-event-starts").value;
     const endsAt = modal.querySelector("#adm-event-ends").value;
     const saleStartsAt = modal.querySelector("#adm-event-sale-start").value;
@@ -124,12 +135,13 @@ function openEventModal(event, venues, refresh) {
       return;
     }
 
-    const pricesByTier = {
-      VIP: Number(modal.querySelector("#adm-event-price-vip").value),
-      STANDARD: Number(modal.querySelector("#adm-event-price-standard").value)
-    };
+    const rawVip = modal.querySelector("#adm-event-price-vip").value.trim();
+    const rawStandard = modal.querySelector("#adm-event-price-standard").value.trim();
+    // Sửa sự kiện mà không biết giá cũ: để trống cả hai nghĩa là giữ nguyên giá.
+    const keepPrices = Boolean(event) && !rawVip && !rawStandard;
+    const pricesByTier = keepPrices ? null : { VIP: Number(rawVip), STANDARD: Number(rawStandard) };
 
-    if (Object.values(pricesByTier).some(price => !Number.isFinite(price) || price <= 0)) {
+    if (pricesByTier && Object.values(pricesByTier).some(price => !Number.isFinite(price) || price <= 0)) {
       error.textContent = "Giá Standard và VIP phải lớn hơn 0.";
       return;
     }
@@ -141,6 +153,7 @@ function openEventModal(event, venues, refresh) {
       await saveEvent({
         id: event?.id,
         name,
+        description,
         venueId: modal.querySelector("#adm-event-venue").value,
         startsAt,
         endsAt,
@@ -176,14 +189,14 @@ async function mountEvents(container) {
     ${events.length ? `<div class="adm-table-frame"><table class="adm-table adm-event-table">
       <thead><tr><th>Sự kiện</th><th>Địa điểm</th><th>Diễn ra</th><th>Bán vé</th><th>Giá từ</th><th>Trạng thái</th><th><span class="adm-visually-hidden">Thao tác</span></th></tr></thead>
       <tbody>${events.map(event => {
-        const venue = venues.find(item => item.id === event.venueId);
+        const venue = venues.find(item => String(item.id) === String(event.venueId));
         const lowestPrice = event.pricesByTier ? Math.min(...Object.values(event.pricesByTier).map(Number).filter(Number.isFinite)) : 0;
         return `<tr>
           <td><strong>${escapeHtml(event.name)}</strong><span class="adm-table-code">${escapeHtml(event.id)}</span></td>
-          <td>${escapeHtml(venue?.name || "Chưa gán địa điểm")}</td>
+          <td>${escapeHtml(venue?.venueName || venue?.name || event.venueName || "Chưa gán địa điểm")}</td>
           <td>${formatDate(event.startsAt)}</td>
           <td><span>${formatDate(event.saleStartsAt)}</span><small class="adm-table-subtext">đến ${formatDate(event.saleEndsAt)}</small></td>
-          <td class="adm-mono">${formatMoney(Number.isFinite(lowestPrice) ? lowestPrice : 0)}</td>
+          <td class="adm-mono">${Number.isFinite(lowestPrice) && lowestPrice > 0 ? formatMoney(lowestPrice) : "—"}</td>
           <td><span class="adm-status adm-status-${event.status.toLowerCase()}">${eventStatusLabels[event.status] || event.status}</span></td>
           <td><div class="adm-row-actions">
             <button class="adm-button adm-button-quiet" type="button" data-adm-edit-event="${escapeHtml(event.id)}">Sửa</button>

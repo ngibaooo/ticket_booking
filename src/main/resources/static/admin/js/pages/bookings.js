@@ -1,5 +1,5 @@
-import { listBookings, listEvents, setBookingStatus } from "../api.js";
-import { escapeHtml, formatDate, formatMoney, notify, renderEmptyState, renderPageHeading } from "../ui.js";
+import { listBookings, listEvents } from "../api.js";
+import { escapeHtml, formatDate, formatMoney, renderEmptyState, renderPageHeading } from "../ui.js";
 
 const bookingStatusLabels = {
   PENDING: "Chờ xử lý",
@@ -24,7 +24,7 @@ async function mountBookings(container) {
     return;
   }
 
-  container.innerHTML = `${renderPageHeading("Đặt vé", "Tìm kiếm, xác nhận hoặc hủy đơn")}
+  container.innerHTML = `${renderPageHeading("Đặt vé", "Tìm kiếm và theo dõi đơn đặt vé")}
     <div class="adm-booking-toolbar" aria-label="Bộ lọc đơn đặt vé">
       <div class="adm-search-field">
         <label for="adm-booking-search">Tìm đơn đặt vé</label>
@@ -39,7 +39,7 @@ async function mountBookings(container) {
       <button class="adm-button" type="button" data-adm-clear-booking-filter>Đặt lại bộ lọc</button>
     </div>
     ${bookings.length ? `<div class="adm-table-frame"><table class="adm-table adm-booking-table">
-      <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sự kiện</th><th>Ghế</th><th>Tổng tiền</th><th>Trạng thái</th><th><span class="adm-visually-hidden">Thao tác</span></th></tr></thead>
+      <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sự kiện</th><th>Ghế</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead>
       <tbody>${bookings.map(booking => {
         const event = events.find(item => item.id === booking.eventId);
         return `<tr>
@@ -49,9 +49,6 @@ async function mountBookings(container) {
           <td><span class="adm-seat-labels">${booking.seatLabels.map(label => `<span class="adm-mono">${escapeHtml(label)}</span>`).join("")}</span></td>
           <td class="adm-mono">${formatMoney(booking.total)}</td>
           <td><span class="adm-status adm-status-${booking.status.toLowerCase()}">${bookingStatusLabels[booking.status] || booking.status}</span></td>
-          <td><div class="adm-row-actions">
-            ${booking.status === "PENDING" ? "<button class=\"adm-button adm-button-confirm\" type=\"button\" data-adm-confirm-booking=\"" + escapeHtml(booking.id) + "\">Xác nhận</button> <button class=\"adm-button adm-button-danger\" type=\"button\" data-adm-cancel-booking=\"" + escapeHtml(booking.id) + "\" data-adm-customer-name=\"" + escapeHtml(booking.customerName) + "\">Hủy đơn</button>" : "<span class=\"adm-table-subtext\">Không có thao tác</span>"}
-          </div></td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>` : renderEmptyState("Không có đơn phù hợp", "Thử bỏ từ khóa hoặc chọn một trạng thái khác.")}`;
@@ -71,35 +68,7 @@ async function mountBookings(container) {
     mountBookings(container);
   });
 
-  container.querySelectorAll("[data-adm-confirm-booking]").forEach(button => {
-    button.addEventListener("click", async () => {
-      button.disabled = true;
-      try {
-        await setBookingStatus(button.dataset.admConfirmBooking, "CONFIRMED");
-        notify("Đã xác nhận đơn đặt vé.");
-        await mountBookings(container);
-      } catch (reason) {
-        notify(reason.message || "Không thể xác nhận đơn.", "error");
-        button.disabled = false;
-      }
-    });
-  });
 
-  container.querySelectorAll("[data-adm-cancel-booking]").forEach(button => {
-    button.addEventListener("click", async () => {
-      const customerName = button.dataset.admCustomerName;
-      if (!window.confirm(`Hủy đơn đặt vé của ${customerName}? Ghế đang giữ sẽ được mở lại.`)) return;
-      button.disabled = true;
-      try {
-        await setBookingStatus(button.dataset.admCancelBooking, "CANCELLED");
-        notify("Đã hủy đơn đặt vé.");
-        await mountBookings(container);
-      } catch (reason) {
-        notify(reason.message || "Không thể hủy đơn.", "error");
-        button.disabled = false;
-      }
-    });
-  });
 }
 
 export async function renderBookings() {

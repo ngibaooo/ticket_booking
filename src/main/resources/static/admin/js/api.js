@@ -1,5 +1,12 @@
-// Đổi thành false khi backend đã sẵn sàng endpoint tương ứng.
-export const USE_MOCK = true;
+// Bật true cho phần nào backend đã có endpoint; phần còn lại dùng dữ liệu mẫu.
+export const REAL = {
+  auth: true,      // POST /auth/login
+  events: true,    // /admin/events
+  venues: false,   // backend chưa có controller địa điểm
+  seats: false,    // backend chưa có controller ghế vật lý
+  bookings: false  // backend chưa có controller đặt vé admin
+};
+export const USE_MOCK = !REAL.auth; // login.js dùng để hiện tài khoản mẫu
 
 const STORAGE_KEY = "ve-nha-admin-demo-v1";
 const SESSION_KEY = "ve-nha-admin-session-v1";
@@ -78,6 +85,7 @@ const initialData = {
       saleStartTime: "2026-11-01T09:00:00",
       saleEndTime: "2026-12-20T18:00:00",
       bannerUrl: "",
+      pricesByTier: { VIP: 1200000, STANDARD: 750000 },
       status: "OPEN",
       createdAt: "2026-11-01T10:00:00",
       updatedAt: "2026-11-01T10:00:00"
@@ -93,6 +101,7 @@ const initialData = {
       saleStartTime: "2026-12-01T09:00:00",
       saleEndTime: "2027-01-08T18:00:00",
       bannerUrl: "",
+      pricesByTier: { VIP: 1200000, STANDARD: 750000 },
       status: "DRAFT",
       createdAt: "2026-11-02T10:00:00",
       updatedAt: "2026-11-02T10:00:00"
@@ -182,13 +191,25 @@ async function apiRequest(path, options = {}) {
   if (options.body) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    throw new Error("Không kết nối được máy chủ. Kiểm tra backend đã chạy ở cổng 8080.");
+  }
   if (response.status === 204) return null;
+  if (response.status === 401 && token) {
+    signOut();
+    location.hash = "#/login";
+    throw new Error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+  }
+  if (response.status === 403) throw new Error("Tài khoản không có quyền thực hiện thao tác này.");
 
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : null;
   if (!response.ok) {
-    const message = payload?.message || payload?.error || "Yêu cầu đến máy chủ không thành công.";
+    const details = payload?.validationErrors ? Object.values(payload.validationErrors).join(" ") : "";
+    const message = [payload?.message, details].filter(Boolean).join(" ") || payload?.error || "Yêu cầu đến máy chủ không thành công.";
     throw new Error(message);
   }
   return payload;
@@ -199,7 +220,7 @@ async function apiRequest(path, options = {}) {
 export async function signIn(email, password) {
   let response;
 
-  if (USE_MOCK) {
+  if (!REAL.auth) {
     if (email !== "admin@example.test" || password !== "demo1234") {
       throw new Error("Thông tin đăng nhập thử chưa đúng.");
     }
@@ -233,9 +254,9 @@ export async function signIn(email, password) {
   return session;
 }
 
+// Dùng cho cả dữ liệu thật và mẫu (mẫu có cùng dạng EventResponse của backend).
 function normalizeBackendEvent(event) {
   if (!event) return null;
-  const status = event.status;
   return {
     id: String(event.id),
     name: event.eventName,
@@ -247,32 +268,49 @@ function normalizeBackendEvent(event) {
     saleStartsAt: event.saleStartTime,
     saleEndsAt: event.saleEndTime,
     bannerUrl: event.bannerUrl || "",
-    status,
-    backendStatus: event.status,
+    status: event.status,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
-    pricesByTier: { VIP: 0, STANDARD: 0, ECONOMY: 0 }
+    pricesByTier: event.pricesByTier ?? null
+  };
+}
+
+function toStoredEvent(ui, prev = {}) {
+  const venue = data.venues.find(item => String(item.id) === String(ui.venueId));
+  return {
+    ...prev,
+    venueId: Number(ui.venueId),
+    venueName: venue?.venueName || prev.venueName || "",
+    eventName: ui.name,
+    description: ui.description ?? prev.description ?? "",
+    startTime: ui.startsAt,
+    endTime: ui.endsAt,
+    saleStartTime: ui.saleStartsAt,
+    saleEndTime: ui.saleEndsAt,
+    bannerUrl: ui.bannerUrl ?? prev.bannerUrl ?? "",
+    status: prev.status ? (ui.status || prev.status) : "DRAFT",
+    pricesByTier: ui.pricesByTier ?? prev.pricesByTier ?? null
   };
 }
 
 // GET /api/v1/venues
 export async function listVenues() {
   // GET /api/v1/venues
-  if (!USE_MOCK) return await apiRequest("/venues");
+  if (REAL.venues) return await apiRequest("/venues");
   return unwrapResponse(mockResponse(data.venues, "Danh sách địa điểm"));
 }
 
 // GET /api/v1/venues/{id}
 export async function getVenue(id) {
   // GET /api/v1/venues/{id}
-  if (!USE_MOCK) return await apiRequest(`/venues/${encodeURIComponent(id)}`);
+  if (REAL.venues) return await apiRequest(`/venues/${encodeURIComponent(id)}`);
   const venue = data.venues.find(item => String(item.id) === String(id)) || null;
   return unwrapResponse(mockResponse(venue, "Chi tiết địa điểm"));
 }
 
 // POST /api/v1/admin/venues hoặc PUT /api/v1/admin/venues/{id}
 export async function saveVenue(venue) {
-  if (!USE_MOCK) {
+  if (REAL.venues) {
     const method = venue.id ? "PUT" : "POST";
     const path = venue.id ? `/admin/venues/${encodeURIComponent(venue.id)}` : "/admin/venues";
     return await apiRequest(path, { method, body: JSON.stringify({
@@ -307,7 +345,7 @@ export async function deleteVenue(id) {
 // GET /api/v1/admin/venues/{id}/seats
 export async function getSeatMap(venueId) {
   // GET /api/v1/admin/venues/{venueId}/seats
-  if (!USE_MOCK) return await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats`);
+  if (REAL.seats) return await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats`);
   const venue = data.venues.find(item => String(item.id) === String(venueId));
   return unwrapResponse(mockResponse(venue ? { venueId: venue.id, seats: venue.seats } : null, "Sơ đồ ghế vật lý"));
 }
@@ -316,9 +354,8 @@ export async function getSeatMap(venueId) {
 // Cập nhật từng ghế: PUT /api/v1/admin/venues/{venueId}/seats/{seatId}
 export async function saveSeatMap(venueId, seatMap) {
   // POST từng ghế mới hoặc PUT từng ghế hiện có.
-  if (!USE_MOCK) {
-    const venue = await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats`);
-    return venue;
+  if (REAL.seats) {
+    throw new Error("Chưa nối API lưu sơ đồ ghế: backend cần endpoint thêm/sửa ghế hàng loạt.");
   }
   const venue = data.venues.find(item => String(item.id) === String(venueId));
   if (!venue) throw new Error("Không tìm thấy địa điểm.");
@@ -328,175 +365,136 @@ export async function saveSeatMap(venueId, seatMap) {
   return unwrapResponse(mockResponse({ venueId: venue.id, seats: venue.seats }, "Cập nhật sơ đồ ghế"));
 }
 
-// GET /api/v1/admin/events
+// GET /api/v1/admin/events (trả Page: lấy .content)
 export async function listEvents() {
-  if (USE_MOCK) return unwrapResponse(mockResponse(copy(data.events), "Danh sách sự kiện"));
+  if (!REAL.events) return data.events.map(normalizeBackendEvent);
 
-  const page = await apiRequest("/admin/events?page=0&size=100&sortBy=createdAt&direction=DESC");
-  if (page?.content) {
-    return Promise.all(page.content.map(async event => {
-      const normalized = normalizeBackendEvent(event);
-      try {
-        const seatData = await apiRequest(`/events/${encodeURIComponent(event.id)}/seats`);
-        const vipSeat = seatData?.seats?.find(seat => seat.seatType === "VIP");
-        const standardSeat = seatData?.seats?.find(seat => seat.seatType === "STANDARD");
-        normalized.pricesByTier = {
-          VIP: Number(vipSeat?.price || 0),
-          STANDARD: Number(standardSeat?.price || 0),
-          ECONOMY: 0
-        };
-      } catch {
-        normalized.pricesByTier = { VIP: 0, STANDARD: 0, ECONOMY: 0 };
-      }
-      return normalized;
-    }));
-  }
-  return unwrapResponse(mockResponse([], "Danh sách sự kiện"));
+  const page = await apiRequest("/admin/events?page=0&size=20&sortBy=createdAt&direction=DESC");
+  return Promise.all((page?.content || []).map(async event => {
+    const normalized = normalizeBackendEvent(event);
+    // Endpoint ghế công khai không trả DRAFT/CANCELLED nên không lấy được giá của hai loại này.
+    if (event.status === "DRAFT" || event.status === "CANCELLED") return normalized;
+    try {
+      const seatData = await apiRequest(`/events/${encodeURIComponent(event.id)}/seats`);
+      const priceOf = type => Number(seatData?.seats?.find(seat => seat.seatType === type)?.price || 0);
+      normalized.pricesByTier = { VIP: priceOf("VIP"), STANDARD: priceOf("STANDARD") };
+    } catch {
+      normalized.pricesByTier = null;
+    }
+    return normalized;
+  }));
 }
 
 // GET /api/v1/admin/events/{id}
 export async function getEvent(id) {
-  if (USE_MOCK) {
-    const event = data.events.find(item => String(item.id) === String(id)) || null;
-    return unwrapResponse(mockResponse(event, "Chi tiết sự kiện"));
-  }
-  const event = await apiRequest(`/admin/events/${encodeURIComponent(id)}`);
-  return normalizeBackendEvent(event);
+  if (!REAL.events) return normalizeBackendEvent(data.events.find(item => String(item.id) === String(id)) || null);
+  return normalizeBackendEvent(await apiRequest(`/admin/events/${encodeURIComponent(id)}`));
 }
 
-// POST /api/v1/admin/events
-// PUT /api/v1/admin/events/{id}
+// Tạo: POST /admin/events (luôn DRAFT, bắt buộc seatPrices).
+// Sửa: PATCH /admin/events/{id} + PUT /admin/events/{id}/seats/prices (chỉ khi DRAFT/UPCOMING),
+// rồi PATCH /admin/events/{id}/status (chỉ đi từng bước: DRAFT>UPCOMING>OPEN>CLOSED>COMPLETED).
 export async function saveEvent(event) {
-  if (USE_MOCK) {
+  if (!REAL.events) {
     const index = data.events.findIndex(item => String(item.id) === String(event.id));
-    const saved = index >= 0
-      ? { ...data.events[index], ...copy(event), updatedAt: new Date().toISOString().slice(0, 19) }
-      : { ...copy(event), id: Math.max(100, ...data.events.map(item => Number(item.id) || 0)) + 1, createdAt: new Date().toISOString().slice(0, 19), updatedAt: new Date().toISOString().slice(0, 19) };
-    if (index >= 0) data.events[index] = saved;
-    else data.events.push(saved);
+    const now = new Date().toISOString().slice(0, 19);
+    let saved;
+    if (index >= 0) {
+      saved = { ...toStoredEvent(event, data.events[index]), updatedAt: now };
+      data.events[index] = saved;
+    } else {
+      saved = { ...toStoredEvent(event), id: Math.max(100, ...data.events.map(item => Number(item.id) || 0)) + 1, createdAt: now, updatedAt: now };
+      data.events.push(saved);
+    }
     persist();
-    return unwrapResponse(mockResponse(saved, index >= 0 ? "Cập nhật sự kiện thành công" : "Tạo sự kiện thành công"));
+    return normalizeBackendEvent(saved);
   }
 
+  const p = event.pricesByTier;
+  const priceBody = p && p.STANDARD > 0 && p.VIP > 0 ? { standardPrice: Number(p.STANDARD), vipPrice: Number(p.VIP) } : null;
+  const toLocalDateTime = value => {
+    if (!value) return value;
+    const local = String(value).replace(/Z$/i, "");
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local) ? `${local}:00` : local;
+  };
+  const fields = {
+    eventName: event.name,
+    description: event.description || "",
+    startTime: toLocalDateTime(event.startsAt),
+    endTime: toLocalDateTime(event.endsAt),
+    saleStartTime: toLocalDateTime(event.saleStartsAt),
+    saleEndTime: toLocalDateTime(event.saleEndsAt),
+    bannerUrl: event.bannerUrl || ""
+  };
+
   if (!event.id) {
-    const venueId = Number(event.venueId);
-    const payload = {
-      venueId,
-      eventName: event.name,
-      description: event.description || "",
-      startTime: event.startsAt,
-      endTime: event.endsAt,
-      saleStartTime: event.saleStartsAt,
-      saleEndTime: event.saleEndsAt,
-      bannerUrl: event.bannerUrl || "",
-      seatPrices: {
-        standardPrice: Number(event.pricesByTier?.STANDARD || 0),
-        vipPrice: Number(event.pricesByTier?.VIP || 0)
-      }
-    };
-    const created = await apiRequest("/admin/events", { method: "POST", body: JSON.stringify(payload) });
-    if (event.status && event.status !== "DRAFT") {
-      await apiRequest(`/admin/events/${created.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: event.status === "ON_SALE" ? "OPEN" : event.status })
-      });
-    }
+    if (!priceBody) throw new Error("Nhập giá VIP và Thường lớn hơn 0.");
+    const created = await apiRequest("/admin/events", {
+      method: "POST",
+      body: JSON.stringify({ venueId: Number(event.venueId), ...fields, seatPrices: priceBody })
+    });
     return normalizeBackendEvent(created);
   }
 
-  const payload = {
-    eventName: event.name,
-    description: event.description || "",
-    startTime: event.startsAt,
-    endTime: event.endsAt,
-    saleStartTime: event.saleStartsAt,
-    saleEndTime: event.saleEndsAt,
-    bannerUrl: event.bannerUrl || ""
-  };
-  const updated = await apiRequest(`/admin/events/${encodeURIComponent(event.id)}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload)
-  });
-
-  const targetStatus = event.status === "ON_SALE" ? "OPEN" : event.status;
-  if (targetStatus && targetStatus !== updated.status) {
-    await apiRequest(`/admin/events/${encodeURIComponent(event.id)}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: targetStatus })
-    });
+  const id = encodeURIComponent(event.id);
+  let latest = await apiRequest(`/admin/events/${id}`);
+  if (latest.status === "DRAFT" || latest.status === "UPCOMING") {
+    latest = await apiRequest(`/admin/events/${id}`, { method: "PATCH", body: JSON.stringify(fields) });
+    if (priceBody) await apiRequest(`/admin/events/${id}/seats/prices`, { method: "PUT", body: JSON.stringify(priceBody) });
   }
-  return normalizeBackendEvent(updated);
+  if (event.status && event.status !== latest.status) {
+    latest = await apiRequest(`/admin/events/${id}/status`, { method: "PATCH", body: JSON.stringify({ status: event.status }) });
+  }
+  return normalizeBackendEvent(latest);
 }
 
 // Backend hiện chưa cung cấp DELETE /api/v1/admin/events/{id}; không gọi API giả.
 export async function deleteEvent() {
-  throw new Error("Backend hiện chưa hỗ trợ xóa sự kiện. Chỉ có thể chuyển trạng thái CANCELLED.");
+  throw new Error("Backend chưa hỗ trợ xóa hoặc hủy sự kiện.");
 }
 
-// GET /api/v1/admin/bookings - tìm kiếm và lọc tại FE
+function normalizeBooking(booking) {
+  const seatLabels = booking.seatNumbers
+    || (booking.tickets || []).map(ticket => ticket.seatNumber).filter(Boolean);
+  return {
+    ...booking,
+    id: String(booking.bookingId ?? booking.id),
+    eventId: String(booking.eventId),
+    customerName: booking.customerName || (booking.userId ? `Người dùng #${booking.userId}` : "Khách hàng"),
+    seatLabels: seatLabels || [],
+    total: booking.total ?? booking.totalAmount ?? 0
+  };
+}
+
+// GET /api/v1/admin/bookings: backend chưa có, nên dùng dữ liệu mẫu cho tới khi REAL.bookings = true.
 export async function listBookings({ query = "", status = "ALL" } = {}) {
-  const normalizedQuery = query.trim().toLocaleLowerCase("vi");
-  const result = data.bookings.filter(booking => {
-    const matchesStatus = status === "ALL" || booking.status === status;
-    const matchesQuery = !normalizedQuery || [booking.bookingCode, booking.customerName, booking.eventId, ...booking.seatNumbers]
-      .some(value => String(value).toLocaleLowerCase("vi").includes(normalizedQuery));
-    return matchesStatus && matchesQuery;
-  });
-  if (!USE_MOCK) return await apiRequest(`/admin/bookings?query=${encodeURIComponent(query)}&status=${encodeURIComponent(status)}`);
-  return unwrapResponse(mockResponse(result, "Danh sách đặt vé"));
-}
-
-// Contract không có admin xác nhận/hủy. Customer hủy dùng PUT /api/v1/bookings/{id}/cancel.
-export async function setBookingStatus(id, status) {
-  const booking = data.bookings.find(item => String(item.bookingId) === String(id));
-  if (!booking) throw new Error("Không tìm thấy đơn đặt vé.");
-  booking.status = status;
-  persist();
-  return unwrapResponse(mockResponse(booking, "Cập nhật trạng thái đặt vé"));
-}
-
-// Dashboard được tính từ dữ liệu đặt vé và sự kiện hiện có.
-export async function getDashboardData() {
-  if (!USE_MOCK) {
-    const [events, bookings] = await Promise.all([
-      listEvents(),
-      listBookings({ query: "", status: "ALL" })
-    ]);
-    const eventList = unwrapResponse(events) || [];
-    const bookingList = unwrapResponse(bookings) || [];
-    const confirmed = bookingList.filter(booking => booking.status === "CONFIRMED");
-    const revenueByEvent = eventList.map(event => ({
-      eventId: event.id,
-      revenue: confirmed.filter(booking => String(booking.eventId) === String(event.id)).reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0)
-    }));
-    return mockResponse({
-      revenue: confirmed.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0),
-      ticketsSold: confirmed.reduce((sum, booking) => sum + (booking.tickets?.length || 0), 0),
-      eventsOnSale: eventList.filter(event => event.status === "OPEN").length,
-      pendingBookings: 0,
-      events: eventList,
-      revenueByEvent,
-      recentBookings: bookingList.slice(0, 5)
-    });
+  let source = data.bookings;
+  if (REAL.bookings) {
+    const payload = await apiRequest("/admin/bookings?page=0&size=100");
+    source = payload?.content ?? payload ?? [];
   }
+  const q = query.trim().toLocaleLowerCase("vi");
+  return source
+    .filter(booking => (status === "ALL" || booking.status === status)
+      && (!q || [booking.bookingCode, booking.customerName, booking.eventId, ...(booking.seatNumbers || [])]
+        .some(value => String(value ?? "").toLocaleLowerCase("vi").includes(q))))
+    .map(normalizeBooking);
+}
 
-  const confirmed = data.bookings.filter(booking => booking.status === "CONFIRMED");
-  const revenueByEvent = data.events.map(event => ({
-    eventId: event.id,
-    revenue: confirmed
-      .filter(booking => String(booking.eventId) === String(event.id))
-      .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0)
-  }));
-
-  return unwrapResponse(mockResponse({
-    revenue: confirmed.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0),
-    ticketsSold: confirmed.reduce((sum, booking) => sum + (booking.seatNumbers?.length || 0), 0),
-    eventsOnSale: data.events.filter(event => event.status === "OPEN").length,
+// Dashboard tự tính từ sự kiện và đặt vé (chưa có endpoint thống kê).
+export async function getDashboardData() {
+  const [events, bookings] = await Promise.all([listEvents(), listBookings()]);
+  const confirmed = bookings.filter(booking => booking.status === "CONFIRMED");
+  const total = list => list.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+  return {
+    revenue: total(confirmed),
+    ticketsSold: confirmed.reduce((sum, booking) => sum + (booking.tickets?.length ?? booking.seatNumbers?.length ?? 0), 0),
+    eventsOnSale: events.filter(event => event.status === "OPEN").length,
     pendingBookings: 0,
-    events: copy(data.events),
-    revenueByEvent,
-    recentBookings: copy(data.bookings).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
-  }));
+    events,
+    revenueByEvent: events.map(event => ({ eventId: event.id, revenue: total(confirmed.filter(booking => booking.eventId === event.id)) })),
+    recentBookings: bookings.slice().sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt))).slice(0, 5)
+  };
 }
 
 export function getSession() {
