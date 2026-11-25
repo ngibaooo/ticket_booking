@@ -355,6 +355,7 @@ Các vé `USED` hoặc `VOID` không được sử dụng lại.
 |---|---|---|---|
 | GET | `/api/v1/venues` | Public | Lấy danh sách địa điểm |
 | GET | `/api/v1/venues/{id}` | Public | Xem chi tiết địa điểm |
+| GET | `/api/v1/admin/venues` | ADMIN | Xem danh sách tất cả địa điểm, kể cả địa điểm ngưng hoạt động |
 | POST | `/api/v1/admin/venues` | ADMIN | Tạo địa điểm |
 | PUT | `/api/v1/admin/venues/{id}` | ADMIN | Cập nhật địa điểm |
 | GET | `/api/v1/admin/venues/{id}/seats` | ADMIN | Xem sơ đồ ghế vật lý |

@@ -2,8 +2,8 @@
 export const REAL = {
   auth: true,      // POST /auth/login
   events: true,    // /admin/events
-  venues: false,   // backend chưa có controller địa điểm
-  seats: false,    // backend chưa có controller ghế vật lý
+  venues: true,    // /venues + /admin/venues
+  seats: true,     // /admin/venues/{venueId}/seats
   bookings: false  // backend chưa có controller đặt vé admin
 };
 export const USE_MOCK = !REAL.auth; // login.js dùng để hiện tài khoản mẫu
@@ -295,15 +295,15 @@ function toStoredEvent(ui, prev = {}) {
 
 // GET /api/v1/venues
 export async function listVenues() {
-  // GET /api/v1/venues
-  if (REAL.venues) return await apiRequest("/venues");
+  // GET /api/v1/admin/venues includes inactive venues for management.
+  if (REAL.venues) return unwrapResponse(await apiRequest("/admin/venues"));
   return unwrapResponse(mockResponse(data.venues, "Danh sách địa điểm"));
 }
 
 // GET /api/v1/venues/{id}
 export async function getVenue(id) {
   // GET /api/v1/venues/{id}
-  if (REAL.venues) return await apiRequest(`/venues/${encodeURIComponent(id)}`);
+  if (REAL.venues) return unwrapResponse(await apiRequest(`/venues/${encodeURIComponent(id)}`));
   const venue = data.venues.find(item => String(item.id) === String(id)) || null;
   return unwrapResponse(mockResponse(venue, "Chi tiết địa điểm"));
 }
@@ -313,12 +313,12 @@ export async function saveVenue(venue) {
   if (REAL.venues) {
     const method = venue.id ? "PUT" : "POST";
     const path = venue.id ? `/admin/venues/${encodeURIComponent(venue.id)}` : "/admin/venues";
-    return await apiRequest(path, { method, body: JSON.stringify({
+    return unwrapResponse(await apiRequest(path, { method, body: JSON.stringify({
       venueName: venue.venueName,
       address: venue.address,
       description: venue.description,
       capacity: Number(venue.capacity)
-    }) });
+    }) }));
   }
 
   const index = data.venues.findIndex(item => String(item.id) === String(venue.id));
@@ -345,7 +345,7 @@ export async function deleteVenue(id) {
 // GET /api/v1/admin/venues/{id}/seats
 export async function getSeatMap(venueId) {
   // GET /api/v1/admin/venues/{venueId}/seats
-  if (REAL.seats) return await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats`);
+  if (REAL.seats) return unwrapResponse(await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats`));
   const venue = data.venues.find(item => String(item.id) === String(venueId));
   return unwrapResponse(mockResponse(venue ? { venueId: venue.id, seats: venue.seats } : null, "Sơ đồ ghế vật lý"));
 }
@@ -355,7 +355,40 @@ export async function getSeatMap(venueId) {
 export async function saveSeatMap(venueId, seatMap) {
   // POST từng ghế mới hoặc PUT từng ghế hiện có.
   if (REAL.seats) {
-    throw new Error("Chưa nối API lưu sơ đồ ghế: backend cần endpoint thêm/sửa ghế hàng loạt.");
+    const currentResponse = await getSeatMap(venueId);
+    const currentSeats = Array.isArray(currentResponse) ? currentResponse : currentResponse?.seats || [];
+    const currentById = new Map(currentSeats.map(seat => [String(seat.id ?? seat.seatId), seat]));
+
+    for (const seat of seatMap.seats) {
+      const body = {
+        seatNumber: seat.seatNumber,
+        rowName: seat.rowName,
+        seatType: seat.seatType,
+        positionX: Number(seat.positionX),
+        positionY: Number(seat.positionY),
+        isActive: seat.isActive !== false
+      };
+
+      if (!seat.seatId) {
+        await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        });
+        continue;
+      }
+
+      const current = currentById.get(String(seat.seatId));
+      if (!current) throw new Error(`Không tìm thấy ghế ${seat.seatNumber} trên máy chủ.`);
+      const changed = Object.entries(body).some(([key, value]) => current[key] !== value);
+      if (changed) {
+        await apiRequest(`/admin/venues/${encodeURIComponent(venueId)}/seats/${encodeURIComponent(seat.seatId)}`, {
+          method: "PUT",
+          body: JSON.stringify(body)
+        });
+      }
+    }
+
+    return getSeatMap(venueId);
   }
   const venue = data.venues.find(item => String(item.id) === String(venueId));
   if (!venue) throw new Error("Không tìm thấy địa điểm.");

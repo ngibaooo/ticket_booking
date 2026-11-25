@@ -12,6 +12,8 @@ public interface VenueService {
 
     List<VenueResponse> getPublicVenues();
 
+    List<VenueResponse> getAdminVenues();
+
     VenueDetailResponse getVenueDetail(Long venueId);
 
     VenueResponse createVenue(CreateVenueRequest request);

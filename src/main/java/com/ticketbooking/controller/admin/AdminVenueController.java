@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/admin/venues")
 @PreAuthorize("hasRole('ADMIN')")
@@ -19,6 +21,12 @@ public class AdminVenueController {
 
     public AdminVenueController(VenueService venueService) {
         this.venueService = venueService;
+    }
+
+    // GET /api/v1/admin/venues
+    @GetMapping
+    public List<VenueResponse> getAdminVenues() {
+        return venueService.getAdminVenues();
     }
 
     // POST /api/v1/admin/venues

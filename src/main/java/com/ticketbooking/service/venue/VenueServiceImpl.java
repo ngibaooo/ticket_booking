@@ -39,6 +39,15 @@ public class VenueServiceImpl implements VenueService {
                 .toList();
     }
 
+        @Override
+        @Transactional(readOnly = true)
+        public List<VenueResponse> getAdminVenues() {
+                return venueRepository.findAll()
+                                .stream()
+                                .map(venueMapper::toResponse)
+                                .toList();
+        }
+
     // GET: Venue detail
     @Override
     @Transactional(readOnly = true)

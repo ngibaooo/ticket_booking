@@ -3,15 +3,11 @@ import { escapeHtml, notify, renderEmptyState, renderPageHeading } from "../ui.j
 
 const tierNames = { VIP: "VIP", STANDARD: "Thường" };
 
-function rowLabel(index) {
-  return String.fromCharCode(65 + index);
-}
-
 function normalizePhysicalSeats(payload) {
   const source = payload?.data?.seats ? payload.data : payload;
   const seats = Array.isArray(source) ? source : (Array.isArray(source?.seats) ? source.seats : []);
   return seats.map(seat => ({
-    seatId: seat.seatId,
+    seatId: seat.seatId ?? seat.id ?? null,
     seatNumber: seat.seatNumber,
     rowName: seat.rowName,
     seatType: seat.seatType,
@@ -36,7 +32,7 @@ function seatsByRow(seats) {
 function renderSeatGrid(seats) {
   return seatsByRow(seats).map(([rowName, rowSeats]) => `<div class="adm-seat-row">
     <strong class="adm-seat-row-label">${escapeHtml(rowName)}</strong>
-    <div class="adm-seat-line">${rowSeats.map(seat => `<button class="adm-seat adm-seat-${String(seat.seatType).toLowerCase()}${seat.isActive ? "" : " adm-seat-lock"}" type="button" data-adm-seat-id="${escapeHtml(seat.seatId)}" data-adm-seat-number="${escapeHtml(seat.seatNumber)}" aria-pressed="${seat.isActive ? "false" : "true"}" title="${escapeHtml(seat.seatNumber)} tại (${seat.positionX}, ${seat.positionY})">
+    <div class="adm-seat-line">${rowSeats.map(seat => `<button class="adm-seat adm-seat-${String(seat.seatType).toLowerCase()}${seat.isActive ? "" : " adm-seat-lock"}" type="button" data-adm-seat-id="${escapeHtml(seat.seatId ?? "")}" data-adm-seat-number="${escapeHtml(seat.seatNumber)}" data-adm-row-name="${escapeHtml(seat.rowName)}" data-adm-position-x="${seat.positionX}" data-adm-position-y="${seat.positionY}" aria-pressed="${seat.isActive ? "false" : "true"}" title="${escapeHtml(seat.seatNumber)} tại (${seat.positionX}, ${seat.positionY})">
       <span>${escapeHtml(seat.seatNumber)}</span><small>${seat.isActive ? (tierNames[seat.seatType] || seat.seatType) : "Khoá"}</small>
     </button>`).join("")}</div>
     <label class="adm-row-tier"><span>Hạng hàng ${escapeHtml(rowName)}</span>
@@ -100,10 +96,10 @@ export async function initSeatMap(root) {
     return {
       seatId: button.dataset.admSeatId || null,
       seatNumber,
-      rowName: seatNumber.replace(/[0-9]/g, ""),
+      rowName: button.dataset.admRowName,
       seatType: row.querySelector("[data-adm-row-type]").value,
-      positionX: Number(seatNumber.replace(/[^0-9]/g, "")),
-      positionY: Number(row.querySelector(".adm-seat-row-label").textContent.charCodeAt(0) - 64),
+      positionX: Number(button.dataset.admPositionX),
+      positionY: Number(button.dataset.admPositionY),
       isActive: button.getAttribute("aria-pressed") !== "true"
     };
   });
@@ -134,11 +130,73 @@ export async function initSeatMap(root) {
     });
   });
 
-  page.querySelector("[data-adm-add-seat]").addEventListener("click", () => notify("Thêm ghế: POST /api/v1/admin/venues/{id}/seats từng ghế một."));
+  page.querySelector("[data-adm-add-seat]").addEventListener("click", () => {
+    const modal = document.createElement("div");
+    modal.className = "adm-modal-backdrop";
+    modal.innerHTML = `<section class="adm-modal" role="dialog" aria-modal="true" aria-labelledby="adm-seat-modal-title">
+      <form class="adm-modal-form" data-adm-seat-form novalidate>
+        <div class="adm-modal-heading"><div><span class="adm-modal-kicker">SƠ ĐỒ GHẾ</span><h2 id="adm-seat-modal-title">Thêm ghế</h2></div>
+          <button class="adm-button adm-button-quiet" type="button" data-adm-seat-close aria-label="Đóng hộp thoại">Đóng</button>
+        </div>
+        <div class="adm-modal-body">
+          <div class="adm-form-grid">
+            <div class="adm-field"><label for="adm-seat-number">Mã ghế</label><input id="adm-seat-number" name="seatNumber" maxlength="10" required></div>
+            <div class="adm-field"><label for="adm-seat-row">Hàng</label><input id="adm-seat-row" name="rowName" maxlength="10" required></div>
+            <div class="adm-field"><label for="adm-seat-type">Hạng ghế</label><select id="adm-seat-type" name="seatType"><option value="STANDARD">Thường</option><option value="VIP">VIP</option></select></div>
+            <div class="adm-field"><label for="adm-seat-x">Vị trí ngang</label><input id="adm-seat-x" name="positionX" type="number" min="0" step="1" required></div>
+            <div class="adm-field"><label for="adm-seat-y">Vị trí dọc</label><input id="adm-seat-y" name="positionY" type="number" min="0" step="1" required></div>
+          </div>
+          <p class="adm-form-error" data-adm-seat-error aria-live="polite"></p>
+        </div>
+        <div class="adm-modal-footer"><button class="adm-button" type="button" data-adm-seat-close>Hủy</button><button class="adm-button adm-button-primary" type="submit">Thêm vào sơ đồ</button></div>
+      </form>
+    </section>`;
+    document.body.append(modal);
+
+    modal.querySelectorAll("[data-adm-seat-close]").forEach(button => button.addEventListener("click", () => modal.remove()));
+    modal.addEventListener("click", event => {
+      if (event.target === modal) modal.remove();
+    });
+    modal.querySelector("[data-adm-seat-form]").addEventListener("submit", event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const seatNumber = String(formData.get("seatNumber")).trim();
+      const rowName = String(formData.get("rowName")).trim();
+      const positionX = Number(formData.get("positionX"));
+      const positionY = Number(formData.get("positionY"));
+      const existing = getRenderedSeats();
+      const error = modal.querySelector("[data-adm-seat-error]");
+      if (!seatNumber || !rowName || !Number.isInteger(positionX) || positionX < 0 || !Number.isInteger(positionY) || positionY < 0) {
+        error.textContent = "Nhập mã ghế, hàng và tọa độ hợp lệ.";
+        return;
+      }
+      if (existing.some(seat => seat.seatNumber.toLocaleLowerCase() === seatNumber.toLocaleLowerCase()
+        || (seat.positionX === positionX && seat.positionY === positionY))) {
+        error.textContent = "Mã ghế hoặc tọa độ đã được sử dụng.";
+        return;
+      }
+      const newSeat = {
+        seatId: null,
+        seatNumber,
+        rowName,
+        seatType: String(formData.get("seatType")),
+        positionX,
+        positionY,
+        isActive: true
+      };
+      grid.innerHTML = renderSeatGrid([...existing, newSeat]);
+      updateCounts([...existing, newSeat]);
+      modal.remove();
+    });
+  });
 
   page.querySelector("[data-adm-save-seats]").addEventListener("click", async () => {
     try {
       await saveSeatMap(venueSelect.value, { venueId: venueSelect.value, seats: getRenderedSeats() });
+      const savedSeats = normalizePhysicalSeats(await getSeatMap(venueSelect.value));
+      grid.innerHTML = renderSeatGrid(savedSeats);
+      updateCounts(savedSeats);
       notify("Đã lưu thay đổi ghế vật lý.");
     } catch (reason) {
       notify(reason.message || "Không thể lưu ghế.", "error");
