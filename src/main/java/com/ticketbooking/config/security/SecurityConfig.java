@@ -53,6 +53,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/events/**")
                         .permitAll()
 
+                        // Public venue viewing APIs
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/venues",
+                                "/api/v1/venues/**"
+                        ).permitAll()
                         // Admin-only APIs
                         .requestMatchers("/api/v1/admin/**")
                         .hasRole("ADMIN")
