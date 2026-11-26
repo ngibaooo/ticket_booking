@@ -4,7 +4,7 @@ export const REAL = {
   events: true,    // /admin/events
   venues: true,    // /venues + /admin/venues
   seats: true,     // /admin/venues/{venueId}/seats
-  bookings: false  // backend chưa có controller đặt vé admin
+  bookings: true   // /admin/bookings
 };
 export const USE_MOCK = !REAL.auth; // login.js dùng để hiện tài khoản mẫu
 
@@ -510,17 +510,25 @@ function normalizeBooking(booking) {
   };
 }
 
-// GET /api/v1/admin/bookings: backend chưa có, nên dùng dữ liệu mẫu cho tới khi REAL.bookings = true.
+// GET /api/v1/admin/bookings
 export async function listBookings({ query = "", status = "ALL" } = {}) {
   let source = data.bookings;
   if (REAL.bookings) {
     const payload = await apiRequest("/admin/bookings?page=0&size=100");
     source = payload?.content ?? payload ?? [];
+    source = await Promise.all(source.map(async booking => {
+      try {
+        return await apiRequest(`/admin/bookings/${encodeURIComponent(booking.id)}`);
+      } catch {
+        return booking;
+      }
+    }));
   }
   const q = query.trim().toLocaleLowerCase("vi");
   return source
     .filter(booking => (status === "ALL" || booking.status === status)
-      && (!q || [booking.bookingCode, booking.customerName, booking.eventId, ...(booking.seatNumbers || [])]
+      && (!q || [booking.bookingCode, booking.customerName, booking.eventId,
+        ...(booking.seatLabels || []), ...(booking.seatNumbers || [])]
         .some(value => String(value ?? "").toLocaleLowerCase("vi").includes(q))))
     .map(normalizeBooking);
 }
@@ -532,9 +540,9 @@ export async function getDashboardData() {
   const total = list => list.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
   return {
     revenue: total(confirmed),
-    ticketsSold: confirmed.reduce((sum, booking) => sum + (booking.tickets?.length ?? booking.seatNumbers?.length ?? 0), 0),
+    ticketsSold: confirmed.reduce((sum, booking) => sum + (booking.tickets?.length ?? booking.seatLabels?.length ?? booking.seatNumbers?.length ?? 0), 0),
     eventsOnSale: events.filter(event => event.status === "OPEN").length,
-    pendingBookings: 0,
+    pendingBookings: bookings.filter(booking => booking.status === "PENDING").length,
     events,
     revenueByEvent: events.map(event => ({ eventId: event.id, revenue: total(confirmed.filter(booking => booking.eventId === event.id)) })),
     recentBookings: bookings.slice().sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt))).slice(0, 5)
