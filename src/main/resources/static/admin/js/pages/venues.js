@@ -141,7 +141,8 @@ async function mountVenuePage(container) {
 
   container.querySelectorAll("[data-adm-edit-venue]").forEach(button => {
     button.addEventListener("click", () => {
-      openVenueModal(venues.find(venue => venue.id === button.dataset.admEditVenue));
+      const venue = venues.find(item => String(item.id) === button.dataset.admEditVenue);
+      if (venue) openVenueModal(venue);
     });
   });
 

@@ -28,7 +28,7 @@ async function mountBookings(container) {
     <div class="adm-booking-toolbar" aria-label="Bộ lọc đơn đặt vé">
       <div class="adm-search-field">
         <label for="adm-booking-search">Tìm đơn đặt vé</label>
-        <input id="adm-booking-search" type="search" value="${escapeHtml(queryInput)}" placeholder="Mã đơn, khách hàng hoặc ghế">
+        <input id="adm-booking-search" type="search" value="${escapeHtml(queryInput)}" placeholder="Khách hàng hoặc ghế">
       </div>
       <div class="adm-field"><label for="adm-booking-status">Trạng thái</label>
         <select id="adm-booking-status">
